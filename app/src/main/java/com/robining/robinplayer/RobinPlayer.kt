@@ -5,6 +5,7 @@ import com.robining.robinplayer.exceptions.PlayerException
 import java.io.File
 
 class RobinPlayer : IPlayer {
+
     init {
         System.loadLibrary("RobinPlayer")
     }
@@ -32,6 +33,10 @@ class RobinPlayer : IPlayer {
         nativePause()
     }
 
+    override fun resume() {
+        nativeResume()
+    }
+
     override fun stop() {
         nativeStop()
     }
@@ -45,6 +50,8 @@ class RobinPlayer : IPlayer {
     private external fun nativePlay()
 
     private external fun nativePause()
+
+    private external fun nativeResume()
 
     private external fun nativeStop()
 

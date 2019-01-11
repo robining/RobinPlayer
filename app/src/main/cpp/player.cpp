@@ -42,6 +42,14 @@ Java_com_robining_robinplayer_RobinPlayer_nativePause(
 
 extern "C" JNIEXPORT void
 JNICALL
+Java_com_robining_robinplayer_RobinPlayer_nativeResume(
+        JNIEnv *env,
+        jobject jobj) {
+    player->resume();
+}
+
+extern "C" JNIEXPORT void
+JNICALL
 Java_com_robining_robinplayer_RobinPlayer_nativeStop(
         JNIEnv *env,
         jobject jobj) {

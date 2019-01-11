@@ -38,9 +38,7 @@ interface IPlayer {
      * 恢复播放
      */
     @Throws(Exception::class)
-    fun resume(){
-        play()
-    }
+    fun resume()
 
     /**
      * 停止播放
