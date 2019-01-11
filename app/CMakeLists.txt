@@ -13,6 +13,12 @@ add_library( # Sets the name of the library.
              src/main/cpp/player/IPlayer.cpp
              src/main/cpp/player/RobinPlayer.h
              src/main/cpp/player/RobinPlayer.cpp
+             src/main/cpp/player/decoders/AudioStreamDecoder.h
+             src/main/cpp/player/decoders/AudioStreamDecoder.cpp
+             src/main/cpp/player/decoders/VideoStreamDecoder.h
+             src/main/cpp/player/decoders/VideoStreamDecoder.cpp
+             src/main/cpp/player/decoders/IStreamDecoder.h
+             src/main/cpp/player/decoders/IStreamDecoder.cpp
               )
 
 add_library( avcodec-57 SHARED IMPORTED)
