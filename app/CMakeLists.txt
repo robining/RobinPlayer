@@ -80,7 +80,7 @@ target_link_libraries( # Specifies the target library.
                        swscale-4
                        soundtouch
 
-                       #OpenSLES
+                       OpenSLES
 
                        # Links the target library to the log library
                        # included in the NDK.

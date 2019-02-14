@@ -7,19 +7,9 @@
 
 #include "IStreamDecoder.h"
 
-class VideoStreamDecoder : public IStreamDecoder {
-private:
-    long packetSize = 0;
+class VideoStreamDecoder : public IStreamDecoder{
 public:
-    void enqueue(AVPacket *packet);
-
-    void pause();
-
-    void resume();
-
-    void stop();
-
-    void release();
+    VideoStreamDecoder(AVCodecContext* codecContext) : IStreamDecoder(codecContext){}
 };
 
 

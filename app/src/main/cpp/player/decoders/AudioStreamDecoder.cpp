@@ -4,19 +4,168 @@
 
 #include "AudioStreamDecoder.h"
 
-void AudioStreamDecoder::enqueue(AVPacket *packet) {
-    packetSize++;
-    LOGI(">>>enqueue audio packets:%ld", packetSize);
+
+void *__initPlayer(void *data) {
+    AudioStreamDecoder *audioStreamDecoder = static_cast<AudioStreamDecoder *>(data);
+    audioStreamDecoder->initPlayer();
+    pthread_exit(&audioStreamDecoder->playerThread);
+}
+
+AudioStreamDecoder::AudioStreamDecoder(AVCodecContext *codecContext) : IStreamDecoder(
+        codecContext) {
+    outBuffer = static_cast<uint8_t *>(malloc(static_cast<size_t>(44100 * 2 * 2)));
+    pthread_create(&playerThread, NULL, __initPlayer, this);
+}
+
+
+void AudioStreamDecoder::playFrame() {
+    LOGI(">>>player ready got frame");
+    AVFrame *frame = popFrame();
+    LOGI(">>>player got a frame");
+
+    SwrContext *swrContext = NULL;
+    //此处设置的44100和2 关系到outBuffer大小初始化
+    swrContext = swr_alloc_set_opts(swrContext, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_S16,
+                                    44100, 2,
+                                    static_cast<AVSampleFormat>(frame->format), frame->sample_rate,
+                                    NULL, NULL);
+    if (!swrContext || swr_init(swrContext) < 0) {
+        LOGE(">>>sws context init failed");
+        av_free(frame);
+        if (swrContext != NULL) {
+            av_free(swrContext);
+        }
+        return;
+    }
+
+    int nb = swr_convert(swrContext, &outBuffer, frame->nb_samples,
+                         reinterpret_cast<const uint8_t **>(&frame->data), frame->nb_samples);
+    int outChannels = av_get_channel_layout_nb_channels(AV_CH_LAYOUT_STEREO);
+    int dataSize = nb * outChannels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16);
+    if (androidSimpleBufferQueueItf == NULL) {
+        av_free(swrContext);
+        return;
+    }
+    (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf, outBuffer,
+                                            static_cast<SLuint32>(dataSize));
+}
+
+
+static void __bufferQueueCallback(SLAndroidSimpleBufferQueueItf bf, void *pContext) {
+    AudioStreamDecoder *audioStreamDecoder = static_cast<AudioStreamDecoder *>(pContext);
+    audioStreamDecoder->playFrame();
+}
+
+void AudioStreamDecoder::initPlayer() {
+    try {
+        SLresult result;
+
+        //create engine
+        result = slCreateEngine(&engineObjItf, 0, 0, 0, 0, 0);
+        sureSLResultSuccess(result, "create engine failed:0");
+        result = (*engineObjItf)->Realize(engineObjItf, SL_BOOLEAN_FALSE);
+        sureSLResultSuccess(result, "create engine failed:1");
+        result = (*engineObjItf)->GetInterface(engineObjItf, SL_IID_ENGINE, &engineItf);
+        sureSLResultSuccess(result, "create engine failed:2");
+
+        //create output mix
+        SLInterfaceID mids[1] = {SL_IID_ENVIRONMENTALREVERB};
+        SLboolean merq[1] = {SL_BOOLEAN_FALSE};
+        result = (*engineItf)->CreateOutputMix(engineItf, &outputMixObjItf, 1, mids, merq);
+        sureSLResultSuccess(result, "create environment failed:0");
+        result = (*outputMixObjItf)->Realize(outputMixObjItf, SL_BOOLEAN_FALSE);
+        sureSLResultSuccess(result, "create environment failed:1");
+        result = (*outputMixObjItf)->GetInterface(outputMixObjItf, SL_IID_ENVIRONMENTALREVERB,
+                                                  &environmentalReverbItf);
+        if (result == SL_RESULT_SUCCESS) {
+            SLEnvironmentalReverbSettings environmentalReverbSettings = SL_I3DL2_ENVIRONMENT_PRESET_STONECORRIDOR;
+            (*environmentalReverbItf)->SetEnvironmentalReverbProperties(environmentalReverbItf,
+                                                                        &environmentalReverbSettings);
+        }
+
+        //create player########
+        //data source
+        SLDataLocator_AndroidBufferQueue androidBufferQueue = {
+                SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE,
+                2
+        };
+        SLDataFormat_PCM pcm = {
+                SL_DATAFORMAT_PCM,
+                2,
+                SL_SAMPLINGRATE_44_1,
+                SL_PCMSAMPLEFORMAT_FIXED_16,
+                SL_PCMSAMPLEFORMAT_FIXED_16,
+                SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT,
+                SL_BYTEORDER_LITTLEENDIAN
+        };
+        SLDataSource dataSource = {&androidBufferQueue, &pcm};
+
+        //data sink
+        SLDataLocator_OutputMix outputMix = {
+                SL_DATALOCATOR_OUTPUTMIX,
+                outputMixObjItf
+        };
+        SLDataSink dataSink = {&outputMix, NULL};
+
+        //interface ids
+        SLInterfaceID ids[1] = {SL_IID_BUFFERQUEUE};
+
+        //reqs
+        SLboolean reqs[1] = {SL_BOOLEAN_TRUE};
+
+        //create
+        result = (*engineItf)->CreateAudioPlayer(engineItf, &playerObjItf, &dataSource, &dataSink,
+                                                 1,
+                                                 ids, reqs);
+        sureSLResultSuccess(result, "create player failed:0");
+        result = (*playerObjItf)->Realize(playerObjItf, SL_BOOLEAN_FALSE);
+        sureSLResultSuccess(result, "create player failed:1");
+        result = (*playerObjItf)->GetInterface(playerObjItf, SL_IID_PLAY, &playItf);
+        sureSLResultSuccess(result, "create player failed:2");
+
+        //config
+        result = (*playerObjItf)->GetInterface(playerObjItf, SL_IID_BUFFERQUEUE,
+                                               &androidSimpleBufferQueueItf);
+        sureSLResultSuccess(result, "create buffer packetQueue failed:0");
+        result = (*androidSimpleBufferQueueItf)->RegisterCallback(androidSimpleBufferQueueItf,
+                                                                  __bufferQueueCallback, this);
+        sureSLResultSuccess(result, "create buffer packetQueue failed:1");
+        LOGI(">>>player init success");
+
+        start();
+    } catch (const char *msg) {
+        LOGE(">>>player init failed :%s", msg);
+    }
+}
+
+void AudioStreamDecoder::sureSLResultSuccess(SLresult result, const char *message) {
+    if (result != SL_RESULT_SUCCESS) {
+        throw message;
+    }
+}
+
+void AudioStreamDecoder::start() {
+    IStreamDecoder::start();
+    LOGI(">>>player ready start play");
+    (*playItf)->SetPlayState(playItf, SL_PLAYSTATE_PLAYING);
+    __bufferQueueCallback(androidSimpleBufferQueueItf, this);
 }
 
 void AudioStreamDecoder::pause() {
+    IStreamDecoder::pause();
+    (*playItf)->SetPlayState(playItf, SL_PLAYSTATE_PAUSED);
 }
 
 void AudioStreamDecoder::resume() {
+    IStreamDecoder::resume();
+    start();
 }
 
 void AudioStreamDecoder::stop() {
+    IStreamDecoder::stop();
+    (*playItf)->SetPlayState(playItf, SL_PLAYSTATE_STOPPED);
 }
 
 void AudioStreamDecoder::release() {
+    IStreamDecoder::release();
 }

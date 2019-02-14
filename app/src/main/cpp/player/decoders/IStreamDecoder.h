@@ -7,17 +7,48 @@
 
 
 #include "../../AndroidLog.h"
-extern "C"{
-    #include "libavformat/avformat.h"
+#include <queue>
+#include <pthread.h>
+
+extern "C" {
+#include "libavformat/avformat.h"
+#include "libavcodec/avcodec.h"
 };
 
 class IStreamDecoder {
+protected:
+    std::queue<AVPacket *> packetQueue;
+    std::queue<AVFrame *> framesQueue;
+    AVCodecContext* codecContext;
+private:
+    bool isRunning = false;
+    bool isPaused = false;
+    pthread_mutex_t mutexDecodePacket;
+    pthread_cond_t condPacketQueueHaveData;
+
+    pthread_mutex_t mutexDecodeFrame;
+    pthread_cond_t condFrameQueueHaveFrame;
+    void startLoopDecodeThread();
 public:
-    virtual void enqueue(AVPacket *packet) = 0;
-    virtual void pause() = 0;
-    virtual void resume() = 0;
-    virtual void stop() = 0;
-    virtual void release() = 0;
+    pthread_t* decodePacketThread;
+
+    IStreamDecoder(AVCodecContext* avCodecContext);
+
+    AVFrame* popFrame();
+
+    virtual void processPacketQueue();
+
+    virtual void enqueue(AVPacket *packet);
+
+    virtual void pause();
+
+    virtual void resume();
+
+    virtual void stop();
+
+    virtual void release();
+
+    virtual void start();
 };
 
 
