@@ -9,6 +9,7 @@
 #include "../../AndroidLog.h"
 #include <queue>
 #include <pthread.h>
+#include "../bridge/JavaBridge.h"
 
 extern "C" {
 #include "libavformat/avformat.h"

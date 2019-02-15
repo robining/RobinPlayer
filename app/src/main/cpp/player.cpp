@@ -3,13 +3,14 @@
 #include "AndroidLog.h"
 #include "player/IPlayer.h"
 #include "player/RobinPlayer.h"
-//---------------------------------------------------inner impl----------------------------------------------------------
-JavaVM *javaVM;
-IPlayer *player = new RobinPlayer();
+#include "player/bridge/JavaBridge.h"
 
+//---------------------------------------------------inner impl----------------------------------------------------------
+IPlayer *player = new RobinPlayer();
+JavaVM *javaVM;
 extern "C" JNIEXPORT jint
 JNICALL
-JNI_OnLoad(JavaVM *jvm, void *args){
+JNI_OnLoad(JavaVM *jvm, void *args) {
     javaVM = jvm;
     return JNI_VERSION_1_6;
 }
@@ -20,7 +21,10 @@ JNICALL
 Java_com_robining_robinplayer_RobinPlayer_nativeInit(
         JNIEnv *env,
         jobject jobj,
+        jobject bridge,
         jstring path) {
+    JavaBridge::getInstance()->init(javaVM, env,
+                                    env->NewGlobalRef(bridge), pthread_self());
     player->init(env->GetStringUTFChars(path, 0));
 }
 
@@ -62,4 +66,13 @@ Java_com_robining_robinplayer_RobinPlayer_nativeDestroy(
         JNIEnv *env,
         jobject jobj) {
     player->release();
+}
+
+extern "C" JNIEXPORT void
+JNICALL
+Java_com_robining_robinplayer_RobinPlayer_nativeSeekTo(
+        JNIEnv *env,
+        jobject jobj,
+        jint seconds) {
+    player->seekTo(seconds);
 }

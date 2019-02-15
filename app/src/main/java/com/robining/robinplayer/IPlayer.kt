@@ -8,19 +8,19 @@ interface IPlayer {
      * 使用本地文件初始化
      */
     @Throws(Exception::class)
-    fun init(file : File)
+    fun init(file: File)
 
     /**
      * 使用网络路径初始化
      */
     @Throws(Exception::class)
-    fun init(url : String)
+    fun init(url: String)
 
     /**
      * 设置渲染接口
      */
     @Throws(Exception::class)
-    fun setSurface(surfaceView : SurfaceView?)
+    fun setSurface(surfaceView: SurfaceView?)
 
     /**
      * 开始播放
@@ -51,4 +51,16 @@ interface IPlayer {
      */
     @Throws(Exception::class)
     fun destroy()
+
+    /**
+     * 跳转至
+     * @param seconds 指定位置(s)
+     */
+    fun seekTo(seconds : Int)
+
+    fun setCallback(callback: IPlayerCallback)
+
+    interface IPlayerCallback {
+        fun onPlayStateChanged(oldState: PLAYER_STATE, newState: PLAYER_STATE) {}
+    }
 }

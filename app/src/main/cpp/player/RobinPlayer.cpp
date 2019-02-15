@@ -64,7 +64,7 @@ void RobinPlayer::playInternal() {
     }
 
     LOGI(">>>player play...and streamDecoder count:%d", streamDecoders.size());
-    state = PLAYING;
+    stateChanged(PLAYING);
 
     //decoding
     while (state == PLAYING) {
@@ -88,7 +88,7 @@ void RobinPlayer::playInternal() {
 void RobinPlayer::pause() {
     LOGI(">>>player pause...");
     if (state == PLAYING) {
-        state = PAUSED;
+        stateChanged(PAUSED);
         for (IStreamDecoder *decoder : streamDecoders) {
             if (decoder != NULL) {
                 decoder->pause();
@@ -100,7 +100,7 @@ void RobinPlayer::pause() {
 void RobinPlayer::resume() {
     LOGI(">>>player resume...");
     if (state == PAUSED) {
-        state = PLAYING;
+        stateChanged(PLAYING);
         for (IStreamDecoder *decoder : streamDecoders) {
             if (decoder != NULL) {
                 decoder->resume();
@@ -113,7 +113,7 @@ void RobinPlayer::stop() {
     LOGI(">>>player stop...");
     this->url = NULL;
     if (state == PLAYING || state == PAUSED) {
-        state = STOPED;
+        stateChanged(STOPED);
         if (avFormatContext != NULL) {
             avformat_free_context(avFormatContext);
             avFormatContext = NULL;
@@ -134,7 +134,7 @@ void RobinPlayer::stop() {
 void RobinPlayer::release() {
     LOGI(">>>player release...");
     stop();
-    state = NOT_INIT;
+    stateChanged(NOT_INIT);
     for (IStreamDecoder *decoder : streamDecoders) {
         if (decoder != NULL) {
             decoder->release();
@@ -232,6 +232,22 @@ void RobinPlayer::initInternal(const char *url) {
     pthread_mutex_unlock(&mutex_init);
 }
 
+void RobinPlayer::seekTo(int seconds) {
+    if (state != PLAYING && state != PAUSED && state != INITED) {
+        return;
+    }
+    if (avFormatContext != NULL && &streamDecoders != NULL) {
+
+        for (int i = 0; i < streamDecoders.size(); i++) {
+//            IStreamDecoder *decoder = streamDecoders[i];
+//            if (decoder != NULL) { //说明该流在播放
+//
+//            }
+            avformat_seek_file(avFormatContext, i, INT64_MIN, seconds * AV_TIME_BASE, INT64_MAX, 0);
+        }
+    }
+}
+
 void RobinPlayer::onError(int code, const char *msg) {
     LOGE(">>>onError:%d,%s", code, msg);
 }
@@ -242,9 +258,13 @@ void RobinPlayer::onWarn(int code, const char *msg) {
 
 void RobinPlayer::stateChanged(PLAYER_STATE oldState, PLAYER_STATE state) {
     this->state = state;
-    LOGI(">>>state changed:%d to %d", oldState, state);
+    if (oldState != state) {
+        JavaBridge::getInstance()->onPlayStateChanged(oldState, state);
+        LOGI(">>>state changed:%d to %d", oldState, state);
+    }
 }
 
 void RobinPlayer::stateChanged(PLAYER_STATE state) {
     stateChanged(this->state, state);
 }
+

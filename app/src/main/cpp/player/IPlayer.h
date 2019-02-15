@@ -29,6 +29,8 @@ public:
     virtual void stop() = 0;
 
     virtual void release() = 0;
+
+    virtual void seekTo(int seconds) = 0;
 };
 
 #endif //ROBINPLAYER_IPLAYER_H

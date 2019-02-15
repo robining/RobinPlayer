@@ -1,0 +1,17 @@
+//
+// Created by Robining on 2019/2/15.
+//
+
+#ifndef ROBINPLAYER_CONSTANTS_H
+#define ROBINPLAYER_CONSTANTS_H
+
+enum PLAYER_STATE{
+    NOT_INIT,
+    INITING,
+    INITED,
+    INIT_FAILED,
+    PLAYING,
+    PAUSED,
+    STOPED
+};
+#endif //ROBINPLAYER_CONSTANTS_H

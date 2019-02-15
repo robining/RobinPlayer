@@ -8,14 +8,15 @@ import android.support.v7.app.AppCompatActivity
 import android.view.View
 import java.io.File
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), IPlayer.IPlayerCallback {
     lateinit var player : IPlayer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        player = RobinPlayer()
+        player = RobinPlayer(this)
+        player.setCallback(this)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -43,4 +44,19 @@ class MainActivity : AppCompatActivity() {
         player.stop()
     }
 
+    fun seekTo(view : View){
+        player.seekTo(40)
+    }
+
+    override fun onPlayStateChanged(oldState: PLAYER_STATE, newState: PLAYER_STATE) {
+        super.onPlayStateChanged(oldState, newState)
+        when(newState){
+            PLAYER_STATE.NOT_INIT -> {
+
+            }
+            else -> {
+
+            }
+        }
+    }
 }
