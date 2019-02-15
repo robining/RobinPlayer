@@ -15,13 +15,13 @@ JNI_OnLoad(JavaVM *jvm, void *args){
 }
 
 //---------------------------------------------------external interface---------------------------------------------------
-extern "C" JNIEXPORT int
+extern "C" JNIEXPORT void
 JNICALL
 Java_com_robining_robinplayer_RobinPlayer_nativeInit(
         JNIEnv *env,
         jobject jobj,
         jstring path) {
-    return player->init(env->GetStringUTFChars(path, 0));
+    player->init(env->GetStringUTFChars(path, 0));
 }
 
 extern "C" JNIEXPORT void

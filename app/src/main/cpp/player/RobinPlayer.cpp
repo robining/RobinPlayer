@@ -9,92 +9,57 @@ RobinPlayer::RobinPlayer() {
     avformat_network_init();
 }
 
-void onFailed(const char *title, const char *reason) {
-    LOGE(">>>%s:%s", title, reason);
+void *__init(void *data) {
+    RobinPlayer *player = static_cast<RobinPlayer *>(data);
+    player->initInternal(player->url);
+    pthread_exit(&player->thread_init);
 }
 
-int RobinPlayer::init(const char *url) {
-    if (state != NOT_INIT) {
-        if(state != STOPED){
-            stop();
-        }
-        release();
-    }
+void RobinPlayer::init(const char *url) {
+    release();
 
-    LOGI(">>>player init...%s at thread:%d", url,(unsigned int)pthread_self());
+    pthread_mutex_init(&mutex_init, NULL);
+    pthread_cond_init(&cond_init_over, NULL);
 
-    try {
-        //open the input
-        int result = avformat_open_input(&avFormatContext, url, NULL, NULL);
-        if (result < 0) {
-            onFailed("open input", av_err2str(result));
-            return ERROR_CODE_OPEN_INPUT_FAILED;
-        }
+    pthread_mutex_lock(&mutex_init);
+    this->url = url;
+    pthread_create(&thread_init, NULL, __init, this);
+//    initInternal(url);
+}
 
-        //find streams
-        result = avformat_find_stream_info(avFormatContext, NULL);
-        if (result < 0) {
-            onFailed("find stream", av_err2str(result));
-            return ERROR_CODE_FIND_STREAM_FAILED;
-        }
-        if (avFormatContext->nb_streams == 0) {//todo 此处应该根据播放模式判断，如果仅播放音频 就判断音频流之类的
-            return ERROR_CODE_NOT_FOUND_AVALIABLE_STREAM;
-        }
-
-        //find stream types
-        std::vector<IStreamDecoder *> decoders(avFormatContext->nb_streams);
-        streamDecoders = decoders;
-        LOGI(">>>TEST:%d", streamDecoders.size());
-        for (int i = 0; i < avFormatContext->nb_streams; i++) {
-            AVStream *stream = avFormatContext->streams[i];
-            AVCodecParameters *codecParameters = stream->codecpar;
-
-            //find decoder
-            AVCodec *codec = avcodec_find_decoder(codecParameters->codec_id);
-            if (codec == NULL) {
-                LOGI(">>>find codec failed at %d", i);
-                continue;
-            }
-
-            //init decoder parameters
-            AVCodecContext *codecContext = avcodec_alloc_context3(codec);
-            result = avcodec_parameters_to_context(codecContext, codecParameters);
-            if (result < 0) {
-                onFailed(">>>decoder parameters to context failed", av_err2str(result));
-                continue;
-            }
-//            av_opt_set_int(codecContext, "refcounted_frames", 1, 0);
-
-            //open decoder
-            result = avcodec_open2(codecContext, codec, NULL);
-            if (result < 0) {
-                onFailed(">>>open decoder failed", av_err2str(result));
-                continue;
-            }
-
-            //to decode
-            if (codecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
-                //to decode video
-                LOGI(">>>init video stream decoder at:%d", i);
-//                streamDecoders[i] = new VideoStreamDecoder(codecContext);
-            } else if (codecParameters->codec_type == AVMEDIA_TYPE_AUDIO) {
-                //to decode audio
-                LOGI(">>>init audio stream decoder...");
-                streamDecoders[i] = new AudioStreamDecoder(codecContext);
-            } else {
-                LOGI(">>>not support this codec_type at this time : %d", i);
-                //not support this codec_type at this time
-            }
-        }
-    } catch (const char *reason) {
-        LOGE(">>>%s", reason);
-    }
-
-    return 0;
+void *__play(void *data) {
+    RobinPlayer *robinPlayer = static_cast<RobinPlayer *>(data);
+    robinPlayer->playInternal();
+    pthread_exit(&robinPlayer->thread_play);
 }
 
 void RobinPlayer::play() {
+    pthread_create(&thread_play, NULL, __play, this);
+}
+
+void RobinPlayer::playInternal() {
+    pthread_mutex_lock(&mutex_init);
+    if (state == NOT_INIT) {
+        onError(CODE_ERROR_NEED_CALL_INIT, "need call init before play()");
+        return;
+    }
+
+    if (state == INIT_FAILED) {
+        onError(CODE_ERROR_COMMON, "cannot play,because init failed");
+        return;
+    }
+
+    if (state == INITING) {//等待初始化结束
+        LOGI(">>>will wait init complete");
+        pthread_cond_wait(&cond_init_over, &mutex_init);
+        play();
+        return;
+    }
+
+    pthread_mutex_unlock(&mutex_init);
+
     if (state == PLAYING) {
+        onWarn(CODE_ERROR_COMMON, "player is playing,please don't call repeat");
         return;
     }
 
@@ -146,22 +111,29 @@ void RobinPlayer::resume() {
 
 void RobinPlayer::stop() {
     LOGI(">>>player stop...");
+    this->url = NULL;
     if (state == PLAYING || state == PAUSED) {
         state = STOPED;
-        if(avFormatContext != NULL){
+        if (avFormatContext != NULL) {
             avformat_free_context(avFormatContext);
             avFormatContext = NULL;
         }
         for (IStreamDecoder *decoder : streamDecoders) {
             if (decoder != NULL) {
                 decoder->stop();
+                free(decoder);
             }
         }
+
+        streamDecoders.clear();
+        pthread_mutex_destroy(&mutex_init);
+        pthread_cond_destroy(&cond_init_over);
     }
 }
 
 void RobinPlayer::release() {
     LOGI(">>>player release...");
+    stop();
     state = NOT_INIT;
     for (IStreamDecoder *decoder : streamDecoders) {
         if (decoder != NULL) {
@@ -170,4 +142,109 @@ void RobinPlayer::release() {
 
         decoder = NULL;
     }
+}
+
+void RobinPlayer::initInternal(const char *url) {
+    LOGI(">>>player init...%s at thread:%d", url, (unsigned int) pthread_self());
+    stateChanged(INITING);
+    try {
+        //open the input
+        int result = avformat_open_input(&avFormatContext, url, NULL, NULL);
+        if (result < 0) {
+            onError(CODE_ERROR_OPEN_INPUT_FAILED, av_err2str(result));
+            goto initFailed;
+        }
+        LOGI(">>>TEST:will start find stream0");
+        //find streams
+        result = avformat_find_stream_info(avFormatContext, NULL);
+        if (result < 0) {
+            onError(CODE_ERROR_FIND_STREAM_FAILED, av_err2str(result));
+            goto initFailed;
+        }
+        if (avFormatContext->nb_streams == 0) {//todo 此处应该根据播放模式判断，如果仅播放音频 就判断音频流之类的
+            onError(CODE_ERROR_NOT_FOUND_AVALIABLE_STREAM, "not fond avaliable stream");
+            goto initFailed;
+        }
+
+        LOGI(">>>TEST:will start find stream1");
+        //find stream types
+        std::vector<IStreamDecoder *> decoders(avFormatContext->nb_streams);
+        streamDecoders = decoders;
+
+        for (int i = 0; i < avFormatContext->nb_streams; i++) {
+            AVStream *stream = avFormatContext->streams[i];
+            AVCodecParameters *codecParameters = stream->codecpar;
+
+            //find decoder
+            AVCodec *codec = avcodec_find_decoder(codecParameters->codec_id);
+            if (codec == NULL) {
+                onWarn(CODE_WARN_DECODER_NOT_FOUND,
+                       "cannot found a decoder for streamIndex:" + i);
+                LOGI(">>>find codec failed at %d", i);
+                continue;
+            }
+
+            //init decoder parameters
+            AVCodecContext *codecContext = avcodec_alloc_context3(codec);
+            result = avcodec_parameters_to_context(codecContext, codecParameters);
+            if (result < 0) {
+                onWarn(CODE_WARN_DECODER_NOT_FOUND, av_err2str(result));
+                continue;
+            }
+//            av_opt_set_int(codecContext, "refcounted_frames", 1, 0);
+
+            //open decoder
+            result = avcodec_open2(codecContext, codec, NULL);
+            if (result < 0) {
+                onWarn(CODE_WARN_DECODER_OPEN_FAILED, av_err2str(result));
+                continue;
+            }
+
+            //to decode
+            if (codecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
+                //to decode video
+                onWarn(CODE_WARN_NOT_FOUND_STREAM_DECODER, "cannot found video stream decoder");
+//                streamDecoders[i] = new VideoStreamDecoder(codecContext);
+            } else if (codecParameters->codec_type == AVMEDIA_TYPE_AUDIO) {
+                //to decode audio
+                LOGI(">>>init audio stream decoder...");
+                streamDecoders[i] = new AudioStreamDecoder(codecContext);
+            } else {
+                onWarn(CODE_WARN_NOT_FOUND_STREAM_DECODER, "cannot found unknown stream decoder");
+                //not support this codec_type at this time
+            }
+        }
+        goto initSuccess;
+    } catch (exception) {
+        onError(CODE_ERROR_COMMON, "got a unknown error when during init");
+        goto initFailed;
+    }
+
+    initFailed:
+    stateChanged(INIT_FAILED);
+    pthread_cond_signal(&cond_init_over);
+    pthread_mutex_unlock(&mutex_init);
+    return;
+
+    initSuccess:
+    stateChanged(INITED);
+    pthread_cond_signal(&cond_init_over);
+    pthread_mutex_unlock(&mutex_init);
+}
+
+void RobinPlayer::onError(int code, const char *msg) {
+    LOGE(">>>onError:%d,%s", code, msg);
+}
+
+void RobinPlayer::onWarn(int code, const char *msg) {
+    LOGW(">>>onWarn:%d,%s", code, msg);
+}
+
+void RobinPlayer::stateChanged(PLAYER_STATE oldState, PLAYER_STATE state) {
+    this->state = state;
+    LOGI(">>>state changed:%d to %d", oldState, state);
+}
+
+void RobinPlayer::stateChanged(PLAYER_STATE state) {
+    stateChanged(this->state, state);
 }

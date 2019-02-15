@@ -25,7 +25,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun play(view : View){
-        player.init(File(Environment.getExternalStorageDirectory(),"1.mp3"))
+//        player.init(File(Environment.getExternalStorageDirectory(),"1.mp3"))
+//        player.init("http://mpge.5nd.com/2015/2015-11-26/69708/1.mp3")
+        player.init("http://dl.stream.qqmusic.qq.com/M500004SoZzZ0Juiny.mp3?vkey=2165317D45895C1DF5BF0ED3AFADB7C22998730AEFD667E226E2D18E16E3C8790179173FDC6A92868E3CACD176B25C854875FA188395E0FB&guid=5150825362&fromtag=1")
         player.play()
     }
 

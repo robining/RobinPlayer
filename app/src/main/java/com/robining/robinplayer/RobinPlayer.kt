@@ -11,10 +11,7 @@ class RobinPlayer : IPlayer {
     }
 
     override fun init(file: File) {
-        var result =  nativeInit(file.absolutePath)
-        if(result < 0){
-            throw PlayerException("open failed")
-        }
+        nativeInit(file.absolutePath)
     }
 
     override fun init(url: String) {
@@ -45,7 +42,7 @@ class RobinPlayer : IPlayer {
         nativeDestroy()
     }
 
-    private external fun nativeInit(url: String) : Int
+    private external fun nativeInit(url: String)
 
     private external fun nativePlay()
 

@@ -30,9 +30,10 @@ private:
     pthread_cond_t condFrameQueueHaveFrame;
     void startLoopDecodeThread();
 public:
-    pthread_t* decodePacketThread;
+    pthread_t decodePacketThread;
 
     IStreamDecoder(AVCodecContext* avCodecContext);
+    ~IStreamDecoder();
 
     AVFrame* popFrame();
 

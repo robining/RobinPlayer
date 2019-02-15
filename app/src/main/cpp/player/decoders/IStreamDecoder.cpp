@@ -14,14 +14,14 @@ IStreamDecoder::IStreamDecoder(AVCodecContext *avCodecContext) {
     startLoopDecodeThread();
 }
 
-static void *__loopDecodePacketQueue(void *data) {
+void *__loopDecodePacketQueue(void *data) {
     IStreamDecoder *obj = static_cast<IStreamDecoder *>(data);
     obj->processPacketQueue();
-    pthread_exit(obj->decodePacketThread);
+    pthread_exit(&obj->decodePacketThread);
 }
 
 void IStreamDecoder::startLoopDecodeThread() {
-    pthread_create(decodePacketThread, NULL, __loopDecodePacketQueue, this);
+    pthread_create(&decodePacketThread, NULL, __loopDecodePacketQueue, this);
 }
 
 void IStreamDecoder::processPacketQueue() {
@@ -29,7 +29,7 @@ void IStreamDecoder::processPacketQueue() {
         return;
     }
     isRunning = true;
-    LOGI(">>>start decoder...:%d",(unsigned int)pthread_self());
+    LOGI(">>>start decoder...:%d", (unsigned int) pthread_self());
     while (isRunning) {
         //获取队列最前端的Packet
         pthread_mutex_lock(&mutexDecodePacket);
@@ -85,7 +85,7 @@ void IStreamDecoder::enqueue(AVPacket *packet) {
 }
 
 AVFrame *IStreamDecoder::popFrame() {
-    LOGI(">>>popframe start...at thread:%d",(unsigned int)pthread_self());
+    LOGI(">>>popframe start...at thread:%d", (unsigned int) pthread_self());
     pthread_mutex_lock(&mutexDecodeFrame);
     if (framesQueue.size() == 0) {
         pthread_cond_wait(&condFrameQueueHaveFrame, &mutexDecodeFrame);
@@ -119,7 +119,23 @@ void IStreamDecoder::release() {
     if (isRunning) {
         stop();
     }
+
     std::queue<AVPacket *> empty;
     std::swap(empty, packetQueue);
+    std::queue<AVFrame *> emptyFrame;
+    std::swap(emptyFrame, framesQueue);
+}
+
+IStreamDecoder::~IStreamDecoder() {
+    std::queue<AVPacket *> empty;
+    std::swap(empty, packetQueue);
+    std::queue<AVFrame *> emptyFrame;
+    std::swap(emptyFrame, framesQueue);
+
+    pthread_mutex_destroy(&mutexDecodePacket);
+    pthread_mutex_destroy(&mutexDecodeFrame);
+    pthread_cond_destroy(&condPacketQueueHaveData);
+    pthread_cond_destroy(&condFrameQueueHaveFrame);
+    pthread_exit(&decodePacketThread);
 }
 

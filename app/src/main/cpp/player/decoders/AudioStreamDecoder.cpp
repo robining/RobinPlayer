@@ -169,3 +169,22 @@ void AudioStreamDecoder::stop() {
 void AudioStreamDecoder::release() {
     IStreamDecoder::release();
 }
+
+AudioStreamDecoder::~AudioStreamDecoder() {
+    if (outBuffer != NULL) {
+        free(outBuffer);
+    }
+
+    if (engineObjItf != NULL) {
+        (*engineObjItf)->Destroy(engineObjItf);
+    }
+
+    if (outputMixObjItf != NULL) {
+        (*outputMixObjItf)->Destroy(outputMixObjItf);
+    }
+
+    if (playerObjItf != NULL) {
+        (*playerObjItf)->Destroy(playerObjItf);
+    }
+
+}
