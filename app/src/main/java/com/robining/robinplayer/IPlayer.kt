@@ -56,11 +56,13 @@ interface IPlayer {
      * 跳转至
      * @param seconds 指定位置(s)
      */
-    fun seekTo(seconds : Int)
+    fun seekTo(seconds: Int)
 
     fun setCallback(callback: IPlayerCallback)
 
     interface IPlayerCallback {
         fun onPlayStateChanged(oldState: PLAYER_STATE, newState: PLAYER_STATE) {}
+        fun onReceivedTotalDuration(duration: Double){}
+        fun onProgressChanged(progress: Double){}
     }
 }

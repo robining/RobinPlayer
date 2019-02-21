@@ -18,7 +18,7 @@ using namespace std;
 class AudioStreamDecoder : public IStreamDecoder {
 public:
     pthread_t playerThread;
-    AudioStreamDecoder(AVCodecContext *codecContext);
+    AudioStreamDecoder(AVStream* avStream,AVCodecContext *codecContext);
     ~AudioStreamDecoder();
 
     void initPlayer();

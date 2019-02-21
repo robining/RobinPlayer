@@ -1,30 +1,20 @@
 package com.robining.robinplayer
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.SurfaceView
 import android.widget.Toast
-import com.robining.robinplayer.exceptions.PlayerException
 import java.io.File
 
 class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
-
-    var playerCallback: IPlayer.IPlayerCallback? = null
+    private val TAG = "RobinPlayer"
+    private var playerCallback: IPlayer.IPlayerCallback? = null
+    private val mainThreadHandler = Handler(Looper.getMainLooper())
 
     override fun setCallback(callback: IPlayer.IPlayerCallback) {
         this.playerCallback = callback
-    }
-
-    override fun onPlayStateChanged(oldState: Int, newState: Int) {
-        val oldPlayerState = PLAYER_STATE.values()[oldState]
-        val newPlayerState = PLAYER_STATE.values()[newState]
-
-        playerCallback?.onPlayStateChanged(oldPlayerState, newPlayerState)
-        println(">>>------------------------state changed:$oldPlayerState to $newPlayerState")
-    }
-
-    init {
-        System.loadLibrary("RobinPlayer")
     }
 
     override fun init(file: File) {
@@ -76,4 +66,44 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
     private external fun nativeDestroy()
 
     private external fun nativeSeekTo(seconds: Int)
+
+    override fun onPlayStateChanged(oldState: Int, newState: Int) {
+        val oldPlayerState = PLAYER_STATE.values()[oldState]
+        val newPlayerState = PLAYER_STATE.values()[newState]
+
+        mainThreadHandler.post {
+            playerCallback?.onPlayStateChanged(oldPlayerState, newPlayerState)
+            Log.i(TAG, ">>>play state changed:$oldPlayerState to $newPlayerState")
+        }
+    }
+
+    override fun onReceivedWarn(code: Int, message: String) {
+        mainThreadHandler.post {
+            Log.w(TAG, "code:$code  message:$message")
+        }
+    }
+
+    override fun onReceivedError(code: Int, message: String) {
+        mainThreadHandler.post {
+            Log.e(TAG, "code:$code  message:$message")
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onReceivedTotalDuration(duration: Double) {
+        mainThreadHandler.post {
+            playerCallback?.onReceivedTotalDuration(duration)
+        }
+    }
+
+    override fun onProgressChanged(progress: Double) {
+        mainThreadHandler.post {
+            playerCallback?.onProgressChanged(progress)
+        }
+    }
+
+
+    init {
+        System.loadLibrary("RobinPlayer")
+    }
 }

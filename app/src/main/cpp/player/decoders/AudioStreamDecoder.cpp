@@ -11,8 +11,8 @@ void *__initPlayer(void *data) {
     pthread_exit(&audioStreamDecoder->playerThread);
 }
 
-AudioStreamDecoder::AudioStreamDecoder(AVCodecContext *codecContext) : IStreamDecoder(
-        codecContext) {
+AudioStreamDecoder::AudioStreamDecoder(AVStream *avStream, AVCodecContext *codecContext)
+        : IStreamDecoder(avStream, codecContext) {
     outBuffer = static_cast<uint8_t *>(malloc(static_cast<size_t>(44100 * 2 * 2)));
     pthread_create(&playerThread, NULL, __initPlayer, this);
 }
@@ -21,6 +21,8 @@ AudioStreamDecoder::AudioStreamDecoder(AVCodecContext *codecContext) : IStreamDe
 void AudioStreamDecoder::playFrame() {
     LOGI(">>>player ready got frame");
     AVFrame *frame = popFrame();
+    double progress = frame->pts * av_q2d(this->stream->time_base);
+    JavaBridge::getInstance()->onProgressChanged(progress);
     LOGI(">>>player got a frame");
 
     SwrContext *swrContext = NULL;

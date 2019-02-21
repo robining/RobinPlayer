@@ -9,7 +9,7 @@
 
 class VideoStreamDecoder : public IStreamDecoder{
 public:
-    VideoStreamDecoder(AVCodecContext* codecContext) : IStreamDecoder(codecContext){}
+    VideoStreamDecoder(AVStream* avStream,AVCodecContext* codecContext) : IStreamDecoder(avStream,codecContext){}
 };
 
 

@@ -23,6 +23,10 @@ public:
     static JavaBridge* getInstance();
     void init(JavaVM* javaVM,JNIEnv* mainJniEnv,jobject javaBridgeObject,pthread_t mainThread);
     void onPlayStateChanged(PLAYER_STATE oldState,PLAYER_STATE newState);
+    void onError(int code, const char* message);
+    void onWarn(int code, const char* message);
+    void onGotTotalDuration(double duration);
+    void onProgressChanged(double progress);
 };
 
 

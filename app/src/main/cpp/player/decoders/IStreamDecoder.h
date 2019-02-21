@@ -24,16 +24,23 @@ protected:
 private:
     bool isRunning = false;
     bool isPaused = false;
+    bool seeking = false;
     pthread_mutex_t mutexDecodePacket;
     pthread_cond_t condPacketQueueHaveData;
 
     pthread_mutex_t mutexDecodeFrame;
     pthread_cond_t condFrameQueueHaveFrame;
+
+    pthread_cond_t condPacketBufferFulled;
+    pthread_cond_t condFrameBufferFulled;
+
+    pthread_cond_t condIsSeeking;
     void startLoopDecodeThread();
 public:
     pthread_t decodePacketThread;
+    AVStream* stream;
 
-    IStreamDecoder(AVCodecContext* avCodecContext);
+    IStreamDecoder(AVStream* stream,AVCodecContext* avCodecContext);
     ~IStreamDecoder();
 
     AVFrame* popFrame();
@@ -51,6 +58,10 @@ public:
     virtual void release();
 
     virtual void start();
+
+    void clearQueue();
+
+    void changeSeekingState(bool isSeeking);
 };
 
 

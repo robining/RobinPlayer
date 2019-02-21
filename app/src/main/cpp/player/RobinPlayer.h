@@ -26,6 +26,7 @@ private:
     PLAYER_STATE state = NOT_INIT;
     pthread_mutex_t mutex_init;
     pthread_cond_t cond_init_over;
+    pthread_mutex_t mutex_seeking;
 
     /**
      * 播放器状态更改

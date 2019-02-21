@@ -4,12 +4,16 @@
 
 #include "IStreamDecoder.h"
 
-IStreamDecoder::IStreamDecoder(AVCodecContext *avCodecContext) {
-    codecContext = avCodecContext;
+IStreamDecoder::IStreamDecoder(AVStream *stream, AVCodecContext *avCodecContext) {
+    this->codecContext = avCodecContext;
+    this->stream = stream;
     pthread_mutex_init(&mutexDecodePacket, NULL);
     pthread_cond_init(&condPacketQueueHaveData, NULL);
     pthread_mutex_init(&mutexDecodeFrame, NULL);
     pthread_cond_init(&condFrameQueueHaveFrame, NULL);
+    pthread_cond_init(&condPacketBufferFulled, NULL);
+
+    pthread_cond_init(&condIsSeeking, NULL);
 
     startLoopDecodeThread();
 }
@@ -33,11 +37,22 @@ void IStreamDecoder::processPacketQueue() {
     while (isRunning) {
         //获取队列最前端的Packet
         pthread_mutex_lock(&mutexDecodePacket);
+//        if (seeking) {
+//            LOGI(">>>-------------decode packet,wait seek complete...");
+//            pthread_cond_wait(&condIsSeeking, NULL);
+//            LOGI(">>>-------------decode packet,seek completed...");
+//        }
         if (packetQueue.size() == 0) {
+            LOGI(">>>-------------decode packet,wait packet queue fill data...");
             pthread_cond_wait(&condPacketQueueHaveData, &mutexDecodePacket);
+            LOGI(">>>-------------decode packet,packet queue filled data...");
         }
         AVPacket *packet = packetQueue.front();
         packetQueue.pop();
+
+        if (packetQueue.size() <= 40) {
+            pthread_cond_signal(&condPacketBufferFulled);
+        }
         pthread_mutex_unlock(&mutexDecodePacket);
         LOGI(">>>ready to decode a packet...");
 
@@ -65,6 +80,15 @@ void IStreamDecoder::processPacketQueue() {
                 }
             }
 
+            if (seeking) {
+                break; //丢弃当前播放的数据
+            }
+
+            if (framesQueue.size() > 40) {
+                LOGI(">>>frame queue is full,wait frame queue pop...");
+                pthread_cond_wait(&condFrameBufferFulled, NULL);
+            }
+
             pthread_mutex_lock(&mutexDecodeFrame);
             framesQueue.push(frame);
             LOGI(">>>enqueue a frame...");
@@ -78,6 +102,15 @@ void IStreamDecoder::processPacketQueue() {
 }
 
 void IStreamDecoder::enqueue(AVPacket *packet) {
+    if (seeking) {
+        return;
+    }
+
+    LOGI(">>>enqueue a packet");
+    if (packetQueue.size() > 40) {
+        LOGI(">>>packet queue is full,wait packet queue pop...");
+        pthread_cond_wait(&condPacketBufferFulled, NULL);
+    }
     pthread_mutex_lock(&mutexDecodePacket);
     packetQueue.push(packet);
     pthread_cond_signal(&condPacketQueueHaveData);
@@ -92,6 +125,10 @@ AVFrame *IStreamDecoder::popFrame() {
     }
     AVFrame *frame = framesQueue.front();
     framesQueue.pop();
+
+    if (framesQueue.size() <= 40) {
+        pthread_cond_signal(&condFrameBufferFulled);
+    }
     pthread_mutex_unlock(&mutexDecodeFrame);
 
     LOGI(">>>popframe end...");
@@ -120,22 +157,36 @@ void IStreamDecoder::release() {
         stop();
     }
 
-    std::queue<AVPacket *> empty;
-    std::swap(empty, packetQueue);
-    std::queue<AVFrame *> emptyFrame;
-    std::swap(emptyFrame, framesQueue);
+    clearQueue();
 }
 
 IStreamDecoder::~IStreamDecoder() {
-    std::queue<AVPacket *> empty;
-    std::swap(empty, packetQueue);
-    std::queue<AVFrame *> emptyFrame;
-    std::swap(emptyFrame, framesQueue);
+    clearQueue();
 
     pthread_mutex_destroy(&mutexDecodePacket);
     pthread_mutex_destroy(&mutexDecodeFrame);
     pthread_cond_destroy(&condPacketQueueHaveData);
     pthread_cond_destroy(&condFrameQueueHaveFrame);
     pthread_exit(&decodePacketThread);
+}
+
+void IStreamDecoder::clearQueue() {
+    std::queue<AVPacket *> empty;
+    std::swap(empty, packetQueue);
+    std::queue<AVFrame *> emptyFrame;
+    std::swap(emptyFrame, framesQueue);
+    pthread_cond_signal(&condPacketBufferFulled);
+    pthread_cond_signal(&condFrameBufferFulled);
+}
+
+void IStreamDecoder::changeSeekingState(bool isSeeking) {
+    pthread_mutex_lock(&mutexDecodePacket);
+    this->seeking = isSeeking;
+    if (!isSeeking) {
+//        pthread_cond_signal(&condIsSeeking);
+    } else {
+        clearQueue();
+    }
+    pthread_mutex_unlock(&mutexDecodePacket);
 }
 

@@ -20,6 +20,7 @@ void RobinPlayer::init(const char *url) {
 
     pthread_mutex_init(&mutex_init, NULL);
     pthread_cond_init(&cond_init_over, NULL);
+    pthread_mutex_init(&mutex_seeking, NULL);
 
     pthread_mutex_lock(&mutex_init);
     this->url = url;
@@ -45,7 +46,6 @@ void RobinPlayer::playInternal() {
     }
 
     if (state == INIT_FAILED) {
-        onError(CODE_ERROR_COMMON, "cannot play,because init failed");
         return;
     }
 
@@ -69,20 +69,26 @@ void RobinPlayer::playInternal() {
     //decoding
     while (state == PLAYING) {
         AVPacket *packet = av_packet_alloc();
+        LOGI(">>>ready read a packet");
+        pthread_mutex_lock(&mutex_seeking);
         int result = av_read_frame(avFormatContext, packet);
         if (result < 0) {
             //the end
             LOGI(">>>preload completed!!!");
             break;
         }
-
+        LOGI(">>>read packet continue");
         IStreamDecoder *streamDecoder = streamDecoders[packet->stream_index];
         if (streamDecoder != NULL) {//only process support type
             streamDecoder->enqueue(packet);
         } else {
             av_free(packet);
         }
+
+        pthread_mutex_unlock(&mutex_seeking);
     }
+
+    LOGI(">>> packet read completed");
 }
 
 void RobinPlayer::pause() {
@@ -128,6 +134,7 @@ void RobinPlayer::stop() {
         streamDecoders.clear();
         pthread_mutex_destroy(&mutex_init);
         pthread_cond_destroy(&cond_init_over);
+        pthread_mutex_destroy(&mutex_seeking);
     }
 }
 
@@ -154,7 +161,6 @@ void RobinPlayer::initInternal(const char *url) {
             onError(CODE_ERROR_OPEN_INPUT_FAILED, av_err2str(result));
             goto initFailed;
         }
-        LOGI(">>>TEST:will start find stream0");
         //find streams
         result = avformat_find_stream_info(avFormatContext, NULL);
         if (result < 0) {
@@ -166,7 +172,6 @@ void RobinPlayer::initInternal(const char *url) {
             goto initFailed;
         }
 
-        LOGI(">>>TEST:will start find stream1");
         //find stream types
         std::vector<IStreamDecoder *> decoders(avFormatContext->nb_streams);
         streamDecoders = decoders;
@@ -208,7 +213,7 @@ void RobinPlayer::initInternal(const char *url) {
             } else if (codecParameters->codec_type == AVMEDIA_TYPE_AUDIO) {
                 //to decode audio
                 LOGI(">>>init audio stream decoder...");
-                streamDecoders[i] = new AudioStreamDecoder(codecContext);
+                streamDecoders[i] = new AudioStreamDecoder(stream, codecContext);
             } else {
                 onWarn(CODE_WARN_NOT_FOUND_STREAM_DECODER, "cannot found unknown stream decoder");
                 //not support this codec_type at this time
@@ -228,6 +233,8 @@ void RobinPlayer::initInternal(const char *url) {
 
     initSuccess:
     stateChanged(INITED);
+    double totalDuration = avFormatContext->duration / AV_TIME_BASE;
+    JavaBridge::getInstance()->onGotTotalDuration(totalDuration);
     pthread_cond_signal(&cond_init_over);
     pthread_mutex_unlock(&mutex_init);
 }
@@ -237,30 +244,63 @@ void RobinPlayer::seekTo(int seconds) {
         return;
     }
     if (avFormatContext != NULL && &streamDecoders != NULL) {
+        pthread_mutex_lock(&mutex_seeking);
+        LOGI(">>>will seek to:%d", seconds);
+//        for (int i = 0; i < streamDecoders.size(); i++) {
+//            IStreamDecoder *decoder = streamDecoders[i];
+//            if (decoder != NULL) {
+//                decoder->changeSeekingState(true);
+//
+//                int result = avformat_seek_file(avFormatContext, decoder->stream->index, INT64_MIN, seconds * AV_TIME_BASE, INT64_MAX, 0);
+//                if(result >= 0){
+//                    LOGI(">>>seek success");
+//                } else{
+//                    LOGI(">>>seek failed", seconds);
+//                }
+//
+//                decoder->changeSeekingState(false);
+//            }
+//        }
+
 
         for (int i = 0; i < streamDecoders.size(); i++) {
-//            IStreamDecoder *decoder = streamDecoders[i];
-//            if (decoder != NULL) { //说明该流在播放
-//
-//            }
-            avformat_seek_file(avFormatContext, i, INT64_MIN, seconds * AV_TIME_BASE, INT64_MAX, 0);
+            IStreamDecoder *decoder = streamDecoders[i];
+            if (decoder != NULL) {
+                decoder->changeSeekingState(true);
+            }
         }
+        //为什么只能用-1
+        int result = avformat_seek_file(avFormatContext, -1, INT64_MIN, seconds * AV_TIME_BASE, INT64_MAX, 0);
+        if(result >= 0){
+            LOGI(">>>seek success");
+        } else{
+            LOGI(">>>seek failed", seconds);
+        }
+
+        for (int i = 0; i < streamDecoders.size(); i++) {
+            IStreamDecoder *decoder = streamDecoders[i];
+            if (decoder != NULL) {
+                decoder->changeSeekingState(false);
+            }
+        }
+
+        pthread_mutex_unlock(&mutex_seeking);
+        LOGI(">>>seeked to:%d", seconds);
     }
 }
 
 void RobinPlayer::onError(int code, const char *msg) {
-    LOGE(">>>onError:%d,%s", code, msg);
+    JavaBridge::getInstance()->onError(code, msg);
 }
 
 void RobinPlayer::onWarn(int code, const char *msg) {
-    LOGW(">>>onWarn:%d,%s", code, msg);
+    JavaBridge::getInstance()->onWarn(code, msg);
 }
 
 void RobinPlayer::stateChanged(PLAYER_STATE oldState, PLAYER_STATE state) {
     this->state = state;
     if (oldState != state) {
         JavaBridge::getInstance()->onPlayStateChanged(oldState, state);
-        LOGI(">>>state changed:%d to %d", oldState, state);
     }
 }
 
