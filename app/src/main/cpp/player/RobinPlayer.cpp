@@ -75,7 +75,10 @@ void RobinPlayer::playInternal() {
         if (result < 0) {
             //the end
             LOGI(">>>preload completed!!!");
-            break;
+            //但是需要继续运行，以免在预加载完毕后不能完成seek操作
+//            break;
+            pthread_mutex_unlock(&mutex_seeking);
+            continue;
         }
         LOGI(">>>read packet continue");
         IStreamDecoder *streamDecoder = streamDecoders[packet->stream_index];
