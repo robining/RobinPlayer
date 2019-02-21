@@ -75,6 +75,8 @@ public:
     void release();
 
     void seekTo(int seconds);
+
+    void setAudioChannel(AUDIO_CHANNEL_TYPE channelType);
 };
 
 

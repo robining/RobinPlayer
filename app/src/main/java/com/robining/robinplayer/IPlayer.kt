@@ -58,6 +58,11 @@ interface IPlayer {
      */
     fun seekTo(seconds: Int)
 
+    /**
+     * 设置音频声道
+     */
+    fun setAudioChannel(channel: AUDIO_CHANNEL)
+
     fun setCallback(callback: IPlayerCallback)
 
     interface IPlayerCallback {

@@ -11,7 +11,6 @@ add_library( # Sets the name of the library.
         src/main/cpp/AndroidLog.h
         src/main/cpp/player/Constants.h
         src/main/cpp/player/IPlayer.h
-        src/main/cpp/player/IPlayer.cpp
         src/main/cpp/player/RobinPlayer.h
         src/main/cpp/player/RobinPlayer.cpp
         src/main/cpp/player/decoders/AudioStreamDecoder.h

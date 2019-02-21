@@ -35,6 +35,8 @@ public:
 
     void release();
 
+    void setAudioChannel(AUDIO_CHANNEL_TYPE channelType);
+
 private:
     uint8_t* outBuffer = NULL;
 
@@ -46,6 +48,8 @@ private:
 
     SLObjectItf playerObjItf = NULL;
     SLPlayItf playItf = NULL;
+
+    SLMuteSoloItf muteSoloItf = NULL;
 
     SLAndroidSimpleBufferQueueItf androidSimpleBufferQueueItf = NULL;
 

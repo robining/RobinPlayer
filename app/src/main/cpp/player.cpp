@@ -76,3 +76,12 @@ Java_com_robining_robinplayer_RobinPlayer_nativeSeekTo(
         jint seconds) {
     player->seekTo(seconds);
 }
+
+extern "C" JNIEXPORT void
+JNICALL
+Java_com_robining_robinplayer_RobinPlayer_nativeSetAudioChannel(
+        JNIEnv *env,
+        jobject jobj,
+        jint channel) {
+    player->setAudioChannel(static_cast<AUDIO_CHANNEL_TYPE>(channel));
+}

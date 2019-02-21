@@ -53,6 +53,10 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
         nativeSeekTo(seconds)
     }
 
+    override fun setAudioChannel(channel: AUDIO_CHANNEL) {
+        nativeSetAudioChannel(channel.ordinal)
+    }
+
     private external fun nativeInit(bridge: INativeBridge, url: String)
 
     private external fun nativePlay()
@@ -66,6 +70,8 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
     private external fun nativeDestroy()
 
     private external fun nativeSeekTo(seconds: Int)
+
+    private external fun nativeSetAudioChannel(channel: Int)
 
     override fun onPlayStateChanged(oldState: Int, newState: Int) {
         val oldPlayerState = PLAYER_STATE.values()[oldState]

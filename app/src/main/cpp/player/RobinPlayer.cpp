@@ -311,3 +311,18 @@ void RobinPlayer::stateChanged(PLAYER_STATE state) {
     stateChanged(this->state, state);
 }
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "OCDFAInspection"
+void RobinPlayer::setAudioChannel(AUDIO_CHANNEL_TYPE channelType) {
+    for (int i = 0; i < streamDecoders.size(); i++) {
+        IStreamDecoder *decoder = streamDecoders[i];
+        if (decoder != NULL) {
+            AudioStreamDecoder *audioStreamDecoder = dynamic_cast<AudioStreamDecoder *>(decoder);
+            if(audioStreamDecoder != NULL){
+                audioStreamDecoder->setAudioChannel(channelType);
+            }
+        }
+    }
+}
+#pragma clang diagnostic pop
+

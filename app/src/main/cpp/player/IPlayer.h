@@ -16,6 +16,8 @@
 #define CODE_WARN_DECODER_OPEN_FAILED -1002
 #define CODE_WARN_NOT_FOUND_STREAM_DECODER -2000
 
+#include "Constants.h"
+
 class IPlayer {
 public:
     virtual void init(const char *url) = 0;
@@ -31,6 +33,8 @@ public:
     virtual void release() = 0;
 
     virtual void seekTo(int seconds) = 0;
+
+    virtual void setAudioChannel(AUDIO_CHANNEL_TYPE channelType) = 0;
 };
 
 #endif //ROBINPLAYER_IPLAYER_H

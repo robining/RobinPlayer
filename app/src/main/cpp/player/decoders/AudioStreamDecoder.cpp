@@ -110,20 +110,24 @@ void AudioStreamDecoder::initPlayer() {
         SLDataSink dataSink = {&outputMix, NULL};
 
         //interface ids
-        SLInterfaceID ids[1] = {SL_IID_BUFFERQUEUE};
+        SLInterfaceID ids[2] = {SL_IID_BUFFERQUEUE, SL_IID_MUTESOLO};
 
         //reqs
-        SLboolean reqs[1] = {SL_BOOLEAN_TRUE};
+        SLboolean reqs[2] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
 
         //create
         result = (*engineItf)->CreateAudioPlayer(engineItf, &playerObjItf, &dataSource, &dataSink,
-                                                 1,
+                                                 2,
                                                  ids, reqs);
         sureSLResultSuccess(result, "create player failed:0");
         result = (*playerObjItf)->Realize(playerObjItf, SL_BOOLEAN_FALSE);
         sureSLResultSuccess(result, "create player failed:1");
         result = (*playerObjItf)->GetInterface(playerObjItf, SL_IID_PLAY, &playItf);
         sureSLResultSuccess(result, "create player failed:2");
+
+        //声道控制器
+        result = (*playerObjItf)->GetInterface(playerObjItf, SL_IID_MUTESOLO, &muteSoloItf);
+        sureSLResultSuccess(result, "create audio controller failed:0");
 
         //config
         result = (*playerObjItf)->GetInterface(playerObjItf, SL_IID_BUFFERQUEUE,
@@ -170,6 +174,34 @@ void AudioStreamDecoder::stop() {
 
 void AudioStreamDecoder::release() {
     IStreamDecoder::release();
+}
+
+
+void AudioStreamDecoder::setAudioChannel(AUDIO_CHANNEL_TYPE channelType) {
+    if (muteSoloItf != NULL) {
+        SLboolean left = SL_BOOLEAN_FALSE;
+        SLboolean right = SL_BOOLEAN_FALSE;
+        switch (channelType) {
+            case LEFT:
+                LOGI(">>>set channel : left");
+                left = SL_BOOLEAN_TRUE;
+                break;
+            case RIGHT:
+                LOGI(">>>set channel : right");
+                right = SL_BOOLEAN_TRUE;
+                break;
+            default:
+                LOGI(">>>set channel : none");
+                break;
+        }
+        (*muteSoloItf)->SetChannelMute(muteSoloItf,
+                                       1,//0右声道1左声道
+                                       left);
+
+        (*muteSoloItf)->SetChannelMute(muteSoloItf,
+                                       0,//0右声道1左声道
+                                       right);
+    }
 }
 
 AudioStreamDecoder::~AudioStreamDecoder() {

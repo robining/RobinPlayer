@@ -53,6 +53,18 @@ class MainActivity : AppCompatActivity(), IPlayer.IPlayerCallback, SeekBar.OnSee
         player.seekTo(100)
     }
 
+    fun setLeftAudioChannel(view: View){
+        player.setAudioChannel(AUDIO_CHANNEL.LEFT)
+    }
+
+    fun setRightAudioChannel(view: View){
+        player.setAudioChannel(AUDIO_CHANNEL.RIGHT)
+    }
+
+    fun setNoneAudioChannel(view: View){
+        player.setAudioChannel(AUDIO_CHANNEL.NONE)
+    }
+
     override fun onPlayStateChanged(oldState: PLAYER_STATE, newState: PLAYER_STATE) {
         super.onPlayStateChanged(oldState, newState)
         when (newState) {

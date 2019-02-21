@@ -14,4 +14,10 @@ enum PLAYER_STATE{
     PAUSED,
     STOPED
 };
+
+enum AUDIO_CHANNEL_TYPE{
+    LEFT,
+    NONE,
+    RIGHT
+};
 #endif //ROBINPLAYER_CONSTANTS_H
