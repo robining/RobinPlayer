@@ -50,7 +50,7 @@ void IStreamDecoder::processPacketQueue() {
         AVPacket *packet = packetQueue.front();
         packetQueue.pop();
 
-        if (packetQueue.size() <= 40) {
+        if (packetQueue.size() <= MAX_QUEUE_SIZE) {
             pthread_cond_signal(&condPacketBufferFulled);
         }
         pthread_mutex_unlock(&mutexDecodePacket);
@@ -80,11 +80,14 @@ void IStreamDecoder::processPacketQueue() {
                 }
             }
 
+            double progress = frame->pts * av_q2d(this->stream->time_base);
+            JavaBridge::getInstance()->onPreloadProgressChanged(progress);
+
             if (seeking) {
                 break; //丢弃当前播放的数据
             }
 
-            if (framesQueue.size() > 40) {
+            if (framesQueue.size() > MAX_QUEUE_SIZE) {
                 LOGI(">>>frame queue is full,wait frame queue pop...");
                 pthread_cond_wait(&condFrameBufferFulled, NULL);
             }
@@ -107,7 +110,7 @@ void IStreamDecoder::enqueue(AVPacket *packet) {
     }
 
     LOGI(">>>enqueue a packet");
-    if (packetQueue.size() > 40) {
+    if (packetQueue.size() > MAX_QUEUE_SIZE) {
         LOGI(">>>packet queue is full,wait packet queue pop...");
         pthread_cond_wait(&condPacketBufferFulled, NULL);
     }
@@ -126,7 +129,7 @@ AVFrame *IStreamDecoder::popFrame() {
     AVFrame *frame = framesQueue.front();
     framesQueue.pop();
 
-    if (framesQueue.size() <= 40) {
+    if (framesQueue.size() <= MAX_QUEUE_SIZE) {
         pthread_cond_signal(&condFrameBufferFulled);
     }
     pthread_mutex_unlock(&mutexDecodeFrame);

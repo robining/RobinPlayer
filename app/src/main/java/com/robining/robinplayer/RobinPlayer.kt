@@ -98,7 +98,15 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
 
     override fun onProgressChanged(progress: Double) {
         mainThreadHandler.post {
+            Log.e(TAG, "play progress:$progress")
             playerCallback?.onProgressChanged(progress)
+        }
+    }
+
+    override fun onPreloadProgressChanged(progress: Double) {
+        mainThreadHandler.post {
+            Log.e(TAG, "preload progress:$progress")
+            playerCallback?.onPreloadProgressChanged(progress)
         }
     }
 

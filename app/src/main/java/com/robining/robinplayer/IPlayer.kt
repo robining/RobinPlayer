@@ -64,5 +64,6 @@ interface IPlayer {
         fun onPlayStateChanged(oldState: PLAYER_STATE, newState: PLAYER_STATE) {}
         fun onReceivedTotalDuration(duration: Double){}
         fun onProgressChanged(progress: Double){}
+        fun onPreloadProgressChanged(progress: Double){}
     }
 }

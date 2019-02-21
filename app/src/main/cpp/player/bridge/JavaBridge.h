@@ -27,6 +27,7 @@ public:
     void onWarn(int code, const char* message);
     void onGotTotalDuration(double duration);
     void onProgressChanged(double progress);
+    void onPreloadProgressChanged(double progress);
 };
 
 

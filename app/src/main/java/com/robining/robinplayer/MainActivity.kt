@@ -91,6 +91,11 @@ class MainActivity : AppCompatActivity(), IPlayer.IPlayerCallback, SeekBar.OnSee
         updateDurationText()
     }
 
+    override fun onPreloadProgressChanged(progress: Double) {
+        super.onPreloadProgressChanged(progress)
+        seekBar.secondaryProgress = progress.toInt()
+    }
+
     override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
         if (fromUser) {
             player.seekTo(progress)

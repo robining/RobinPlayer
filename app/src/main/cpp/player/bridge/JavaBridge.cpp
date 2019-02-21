@@ -103,5 +103,18 @@ void JavaBridge::onProgressChanged(double progress) {
     }
 }
 
+void JavaBridge::onPreloadProgressChanged(double progress) {
+    if (isInited()) {
+        JNIEnv *jniEnv = getJniEnv();
+        jclass cls = jniEnv->GetObjectClass(this->javaBridgeObject);
+        jmethodID method = jniEnv->GetMethodID(cls, "onPreloadProgressChanged", "(D)V");
+        jniEnv->CallVoidMethod(javaBridgeObject, method, progress);
+
+        if (jniEnv != mainJniEnv) { //不是在主线程
+            this->javaVM->DetachCurrentThread();
+        }
+    }
+}
+
 
 

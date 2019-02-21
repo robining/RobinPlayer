@@ -6,4 +6,5 @@ interface INativeBridge {
     fun onReceivedWarn(code: Int, message: String)
     fun onReceivedTotalDuration(duration: Double)
     fun onProgressChanged(progress: Double)
+    fun onPreloadProgressChanged(progress: Double)
 }
