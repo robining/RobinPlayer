@@ -1,11 +1,27 @@
 cmake_minimum_required(VERSION 3.4.1)
 
 include_directories(src/main/cpp/include)
+include_directories(src/main/cpp/soundtouch/include)
+include_directories(src/main/cpp/soundtouch/SoundTouch)
 add_library( # Sets the name of the library.
         RobinPlayer
 
         SHARED
 
+        #SoundTouch
+        src/main/cpp/soundtouch/SoundTouch/AAFilter.cpp
+        src/main/cpp/soundtouch/SoundTouch/FIFOSampleBuffer.cpp
+        src/main/cpp/soundtouch/SoundTouch/FIRFilter.cpp
+        src/main/cpp/soundtouch/SoundTouch/cpu_detect_x86.cpp
+        src/main/cpp/soundtouch/SoundTouch/sse_optimized.cpp
+        src/main/cpp/soundtouch/SoundTouch/RateTransposer.cpp
+        src/main/cpp/soundtouch/SoundTouch/SoundTouch.cpp
+        src/main/cpp/soundtouch/SoundTouch/InterpolateCubic.cpp
+        src/main/cpp/soundtouch/SoundTouch/InterpolateLinear.cpp
+        src/main/cpp/soundtouch/SoundTouch/InterpolateShannon.cpp
+        src/main/cpp/soundtouch/SoundTouch/TDStretch.cpp
+        src/main/cpp/soundtouch/SoundTouch/PeakFinder.cpp
+        
         #include files...
         src/main/cpp/player.cpp
         src/main/cpp/AndroidLog.h
@@ -64,10 +80,10 @@ set_target_properties(swscale-4
         PROPERTIES IMPORTED_LOCATION
         ${CMAKE_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI}/libswscale-4.so)
 
-add_library(soundtouch SHARED IMPORTED)
-set_target_properties(soundtouch
-        PROPERTIES IMPORTED_LOCATION
-        ${CMAKE_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI}/libsoundtouch.so)
+#add_library(soundtouch SHARED IMPORTED)
+#set_target_properties(soundtouch
+#        PROPERTIES IMPORTED_LOCATION
+#        ${CMAKE_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI}/libsoundtouch.so)
 
 target_link_libraries( # Specifies the target library.
         RobinPlayer
@@ -80,7 +96,7 @@ target_link_libraries( # Specifies the target library.
         postproc-54
         swresample-2
         swscale-4
-        soundtouch
+#        soundtouch
 
         OpenSLES
 

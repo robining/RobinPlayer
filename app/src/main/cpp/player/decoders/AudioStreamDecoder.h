@@ -8,17 +8,20 @@
 #include "IStreamDecoder.h"
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
-#include "soundtouch/SoundTouch.h"
+#include "../../soundtouch/include/SoundTouch.h"
 
 extern "C" {
-    #include <libswresample/swresample.h>
+#include "../../include/libswresample/swresample.h"
 };
 using namespace std;
+using namespace soundtouch;
 
 class AudioStreamDecoder : public IStreamDecoder {
 public:
     pthread_t playerThread;
-    AudioStreamDecoder(AVStream* avStream,AVCodecContext *codecContext);
+
+    AudioStreamDecoder(AVStream *avStream, AVCodecContext *codecContext);
+
     ~AudioStreamDecoder();
 
     void initPlayer();
@@ -38,7 +41,7 @@ public:
     void setAudioChannel(AUDIO_CHANNEL_TYPE channelType);
 
 private:
-    uint8_t* outBuffer = NULL;
+    uint8_t *outBuffer = NULL;
 
     SLObjectItf engineObjItf = NULL;
     SLEngineItf engineItf = NULL;
@@ -52,6 +55,12 @@ private:
     SLMuteSoloItf muteSoloItf = NULL;
 
     SLAndroidSimpleBufferQueueItf androidSimpleBufferQueueItf = NULL;
+
+    SoundTouch *soundTouch = NULL;
+    SAMPLETYPE *soundSampleBuffer = NULL;
+
+    int* readOneFrame();
+
 
     void sureSLResultSuccess(SLresult result, const char *message);
 };
