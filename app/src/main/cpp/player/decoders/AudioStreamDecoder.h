@@ -57,7 +57,8 @@ private:
     SLAndroidSimpleBufferQueueItf androidSimpleBufferQueueItf = NULL;
 
     SoundTouch *soundTouch = NULL;
-    SAMPLETYPE *soundSampleBuffer = NULL;
+    SAMPLETYPE *soundSampleInBuffer = NULL;
+    SAMPLETYPE *soundSampleOutBuffer = NULL;
 
     int* readOneFrame();
 

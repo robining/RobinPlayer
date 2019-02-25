@@ -14,16 +14,19 @@ void *__initPlayer(void *data) {
 AudioStreamDecoder::AudioStreamDecoder(AVStream *avStream, AVCodecContext *codecContext)
         : IStreamDecoder(avStream, codecContext) {
     outBuffer = static_cast<uint8_t *>(malloc(static_cast<size_t>(44100 * 2 * 2)));
-    soundSampleBuffer = static_cast<SAMPLETYPE *>(malloc(44100 * 2 * 2 * 2 / 3));
+    soundSampleInBuffer = static_cast<SAMPLETYPE *>(malloc(44100 * 2 * 2 * 2 / 3));
+    soundSampleOutBuffer = static_cast<SAMPLETYPE *>(malloc(44100 * 2 * 2 * 2 / 3));
 
     soundTouch = new SoundTouch();
     soundTouch->setSampleRate(44100);
     soundTouch->setChannels(2);
+//    soundTouch->setPitch(1.5f);
+    soundTouch->setTempo(3.5f);
     pthread_create(&playerThread, NULL, __initPlayer, this);
 }
 
 
-int* AudioStreamDecoder::readOneFrame() {
+int *AudioStreamDecoder::readOneFrame() {
     LOGI(">>>player ready got frame");
     AVFrame *frame = popFrame();
     double progress = frame->pts * av_q2d(this->stream->time_base);
@@ -54,58 +57,59 @@ int* AudioStreamDecoder::readOneFrame() {
         return NULL;
     }
 
-    int result[] = {dataSize,nb};
-    LOGI(">>>TTT:......%d,%d,%d",dataSize,nb,outChannels);
+    int result[] = {dataSize, nb};
+    LOGI(">>>TTT:......%d,%d,%d", dataSize, nb, outChannels);
     return result;
 }
 
 void AudioStreamDecoder::playFrame() {
     LOGI(">>>TTT:----------------------------");
-    int* result = readOneFrame();
-    if(result == NULL){
+    int *result = readOneFrame();
+    if (result == NULL) {
         LOGI(">>>TTT:enqueued FAIL");
         return;
     }
     int nb = result[1];
     int dataSize = result[0];
-    int sampleBufferSize = dataSize /2 + 1;
-    LOGI(">>>TTT:enqueued READY%d,%d",nb,dataSize);
+    int sampleBufferSize = dataSize / 2 + 1;
+    LOGI(">>>TTT:enqueued READY%d,%d", nb, dataSize);
 
-    for(int i = 0; i < sampleBufferSize; i ++){
-        soundSampleBuffer[i] = outBuffer[i * 2] | (outBuffer[i*2 + 1] << 8);
+    for (int i = 0; i < sampleBufferSize; i++) {
+        soundSampleInBuffer[i] = outBuffer[i * 2] | (outBuffer[i * 2 + 1] << 8);
     }
 
-    soundTouch->putSamples(soundSampleBuffer, static_cast<uint>(nb * 2));
-    uint size = 0;
-
-    do{
-        size = soundTouch->receiveSamples(soundSampleBuffer, static_cast<uint>(nb * 2));
-        LOGI(">>>TTT:received %d",size);
-        if(size > 0){
-            LOGI(">>>TTT:enqueued %d",size);
-            (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf, soundSampleBuffer,
-                                                    static_cast<SLuint32>(size * 2 * 2));
-            break;
-
+    soundTouch->putSamples(soundSampleInBuffer, static_cast<uint>(nb));
+    uint outSampleCount = 0;
+    uint totalSampleCount = 0;
+    do {
+        outSampleCount = soundTouch->receiveSamples(soundSampleOutBuffer, static_cast<uint>(nb));
+        LOGI(">>>TTT:received %d", outSampleCount);
+        totalSampleCount += outSampleCount;
+        if (outSampleCount > 0) {
+            LOGI(">>>TTT:enqueued %d", outSampleCount);
+            (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf,
+                                                    soundSampleOutBuffer,
+                                                    static_cast<SLuint32>(outSampleCount * 2 * 2));
+            break; //只读取一次就行了，多读取入队有问题，不知道为什么
         }
-    }while (size > 0);
-
-    soundTouch->flush();
+    } while (outSampleCount > 0);
+    if (totalSampleCount == 0) { //如果没有读出值则重新获取一帧
+        playFrame();
+    }
+//    soundTouch->flush();
 //    do{
-//        size = soundTouch->receiveSamples(soundSampleBuffer, static_cast<uint>(dataSize / 4));
-//        LOGI(">>>TTT:received1 %d",size);
-//        if(size > 0){
-//            LOGI(">>>TTT:enqueued1 %d",size);
+//        outSampleCount = soundTouch->receiveSamples(soundSampleOutBuffer, static_cast<uint>(dataSize / 4));
+//        LOGI(">>>TTT:received1 %d",outSampleCount);
+//        if(outSampleCount > 0){
+//            LOGI(">>>TTT:enqueued1 %d",outSampleCount);
 ////            (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf, soundSampleBuffer,
 ////                                                    static_cast<SLuint32>(size));
 //
 //        }
-//    }while (size > 0);
+//    }while (outSampleCount > 0);
 //
 //    LOGI(">>>TTT:enqueued end");
 }
-
-
 
 
 static void __bufferQueueCallback(SLAndroidSimpleBufferQueueItf bf, void *pContext) {
