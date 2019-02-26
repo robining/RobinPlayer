@@ -1,6 +1,7 @@
 package com.robining.robinplayer
 
 import android.Manifest
+import android.opengl.GLSurfaceView
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -23,6 +24,8 @@ class MainActivity : AppCompatActivity(), IPlayer.IPlayerCallback, SeekBar.OnSee
         player = RobinPlayer(this)
         player.setCallback(this)
 
+        player.bindSurfaceView(surfaceView)
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE), 1)
@@ -31,7 +34,9 @@ class MainActivity : AppCompatActivity(), IPlayer.IPlayerCallback, SeekBar.OnSee
     }
 
     fun play(view: View) {
-        player.init(File(Environment.getExternalStorageDirectory(), "1.mp3"))
+//        player.init(File(Environment.getExternalStorageDirectory(), "1.mp3"))
+//        player.init(File(Environment.getExternalStorageDirectory(), "VID_20190211_170131.mp4"))
+        player.init(File(Environment.getExternalStorageDirectory(),"DCIM/Camera/VID_20190226_172327.mp4"))
 //        player.init("http://mpge.5nd.com/2015/2015-11-26/69708/1.mp3")
 //        player.init("http://dl.stream.qqmusic.qq.com/M500004SoZzZ0Juiny.mp3?vkey=2165317D45895C1DF5BF0ED3AFADB7C22998730AEFD667E226E2D18E16E3C8790179173FDC6A92868E3CACD176B25C854875FA188395E0FB&guid=5150825362&fromtag=1")
         player.play()
@@ -53,30 +58,30 @@ class MainActivity : AppCompatActivity(), IPlayer.IPlayerCallback, SeekBar.OnSee
         player.seekTo(100)
     }
 
-    fun setLeftAudioChannel(view: View){
+    fun setLeftAudioChannel(view: View) {
         player.setAudioChannel(AUDIO_CHANNEL.LEFT)
     }
 
-    fun setRightAudioChannel(view: View){
+    fun setRightAudioChannel(view: View) {
         player.setAudioChannel(AUDIO_CHANNEL.RIGHT)
     }
 
-    fun setNoneAudioChannel(view: View){
+    fun setNoneAudioChannel(view: View) {
         player.setAudioChannel(AUDIO_CHANNEL.NONE)
     }
 
-    fun startRecord(view: View){
-        val file = File(Environment.getExternalStorageDirectory(),"aac/tttt.aac")
-        if(!file.parentFile.exists()){
+    fun startRecord(view: View) {
+        val file = File(Environment.getExternalStorageDirectory(), "aac/tttt.aac")
+        if (!file.parentFile.exists()) {
             file.parentFile.mkdirs()
         }
-        if(!file.exists()){
+        if (!file.exists()) {
             file.createNewFile()
         }
         player.startRecord(file)
     }
 
-    fun stopRecord(view: View){
+    fun stopRecord(view: View) {
         player.stopRecord()
     }
 

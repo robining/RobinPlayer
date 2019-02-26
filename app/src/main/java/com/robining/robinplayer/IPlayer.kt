@@ -1,5 +1,6 @@
 package com.robining.robinplayer
 
+import android.opengl.GLSurfaceView
 import android.view.SurfaceView
 import java.io.File
 
@@ -68,6 +69,8 @@ interface IPlayer {
     fun startRecord(file: File)
 
     fun stopRecord()
+
+    fun bindSurfaceView(glSurfaceView: GLSurfaceView)
 
     interface IPlayerCallback {
         fun onPlayStateChanged(oldState: PLAYER_STATE, newState: PLAYER_STATE) {}

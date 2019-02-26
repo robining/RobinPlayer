@@ -6,10 +6,18 @@
 #define ROBINPLAYER_VIDEOSTREAMDECODER_H
 
 #include "IStreamDecoder.h"
+extern "C"{
+    #include <libavutil/imgutils.h>
+    #include <libswscale/swscale.h>
+};
 
 class VideoStreamDecoder : public IStreamDecoder{
 public:
-    VideoStreamDecoder(AVStream* avStream,AVCodecContext* codecContext) : IStreamDecoder(avStream,codecContext){}
+    VideoStreamDecoder(AVStream* avStream,AVCodecContext* codecContext);
+    void playFrames();
+
+private:
+    pthread_t playerThread;
 };
 
 

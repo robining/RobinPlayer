@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
+import android.opengl.GLSurfaceView
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -22,6 +23,8 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
     private val recorderLock = "recorderLock"
     private var isInitedEncoder = false
     private var encodeOuputStream: OutputStream? = null
+    private val playerRender = RPlayerRender(context)
+    private var glSurfaceView:GLSurfaceView? = null
 
     override fun setCallback(callback: IPlayer.IPlayerCallback) {
         this.playerCallback = callback
@@ -82,7 +85,7 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
             mediaEncoder!!.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             mediaEncoder!!.start()
 
-            encodeOuputStream = FileOutputStream(file)
+            encodeOuputStream = FileOutputStream(file) as OutputStream?
             isInitedEncoder = true
             Log.e(TAG, "init aac encoder end")
         }
@@ -98,6 +101,15 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
             Log.e(TAG, "destroy aac encoder start")
         }
     }
+
+
+    override fun bindSurfaceView(glSurfaceView: GLSurfaceView) {
+        glSurfaceView.setEGLContextClientVersion(2)
+        glSurfaceView.setRenderer(playerRender)
+        glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+        this.glSurfaceView = glSurfaceView
+    }
+
 
     private external fun nativeInit(bridge: INativeBridge, url: String)
 
@@ -228,6 +240,11 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
         return rate
     }
 
+    override fun onPlayVideoFrame(width: Int, height: Int, y: ByteArray, u: ByteArray, v: ByteArray) {
+        Log.i(TAG,"received a video frame:$width,$height...size:${y.size}")
+        playerRender.setYUVRenderData(width, height, y, u, v)
+        this.glSurfaceView?.requestRender()
+    }
 
     init {
         System.loadLibrary("RobinPlayer")

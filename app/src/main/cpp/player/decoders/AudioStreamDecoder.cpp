@@ -53,12 +53,15 @@ int *AudioStreamDecoder::readOneFrame() {
     int outChannels = av_get_channel_layout_nb_channels(AV_CH_LAYOUT_STEREO);
     int dataSize = nb * outChannels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16);
     if (androidSimpleBufferQueueItf == NULL) {
+        av_free(frame);
         av_free(swrContext);
         return NULL;
     }
 
     int result[] = {dataSize, nb};
     LOGI(">>>TTT:......%d,%d,%d", dataSize, nb, outChannels);
+    av_free(frame);
+    av_free(swrContext);
     return result;
 }
 

@@ -21,10 +21,10 @@ protected:
     std::queue<AVPacket *> packetQueue;
     std::queue<AVFrame *> framesQueue;
     AVCodecContext* codecContext;
-private:
     bool isRunning = false;
     bool isPaused = false;
     bool seeking = false;
+private:
     const int MAX_QUEUE_SIZE = 400;
     pthread_mutex_t mutexDecodePacket;
     pthread_cond_t condPacketQueueHaveData;

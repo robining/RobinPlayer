@@ -60,8 +60,10 @@ void IStreamDecoder::processPacketQueue() {
         if (result < 0) {
             if (result == AVERROR_EOF) {//the end of file
                 LOGE(">>>send packet completed!");
+                av_free(packet);
                 continue;
-            } else {//found a exception
+            }else {//found a exception
+                av_free(packet);
                 LOGE(">>>send packet:%s", av_err2str(result));
                 continue;
             }
@@ -73,8 +75,10 @@ void IStreamDecoder::processPacketQueue() {
             if (result < 0) {
                 if (result == AVERROR_EOF) {//the end of file
                     LOGE(">>>receive frame completed!");
+                    av_free(frame);
                     break;
                 } else {//found a exception
+                    av_free(frame);
                     LOGE(">>>receive frame:%s", av_err2str(result));
                     break;
                 }
@@ -100,6 +104,7 @@ void IStreamDecoder::processPacketQueue() {
         }
 
 
+        av_free(packet);
         LOGI(">>>decoded a packet...");
     }
 }

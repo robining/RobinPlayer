@@ -125,6 +125,34 @@ void JavaBridge::onPlayAudioFrame(int length, void *buffer) {
         jniEnv->SetByteArrayRegion(bytes, 0, length, static_cast<const jbyte *>(buffer));
         jniEnv->CallVoidMethod(javaBridgeObject, method, length, bytes);
 
+        jniEnv->DeleteLocalRef(bytes);
+
+        if (jniEnv != mainJniEnv) { //不是在主线程
+            this->javaVM->DetachCurrentThread();
+        }
+    }
+}
+
+void JavaBridge::onPlayVideoFrame(int width, int height, void *y, void *u, void *v) {
+    if (isInited()) {
+        JNIEnv *jniEnv = getJniEnv();
+        jclass cls = jniEnv->GetObjectClass(this->javaBridgeObject);
+        jmethodID method = jniEnv->GetMethodID(cls, "onPlayVideoFrame", "(II[B[B[B)V");
+        jbyteArray jy = jniEnv->NewByteArray(width * height);
+        jniEnv->SetByteArrayRegion(jy, 0, width * height, static_cast<const jbyte *>(y));
+
+        jbyteArray ju = jniEnv->NewByteArray(width * height / 4);
+        jniEnv->SetByteArrayRegion(ju, 0, width * height / 4, static_cast<const jbyte *>(u));
+
+        jbyteArray jv = jniEnv->NewByteArray(width * height / 4);
+        jniEnv->SetByteArrayRegion(jv, 0, width * height / 4, static_cast<const jbyte *>(v));
+
+        jniEnv->CallVoidMethod(javaBridgeObject, method, width, height, jy, ju, jv);
+
+        jniEnv->DeleteLocalRef(jy);
+        jniEnv->DeleteLocalRef(ju);
+        jniEnv->DeleteLocalRef(jv);
+
         if (jniEnv != mainJniEnv) { //不是在主线程
             this->javaVM->DetachCurrentThread();
         }

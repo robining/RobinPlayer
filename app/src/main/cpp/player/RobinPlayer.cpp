@@ -77,6 +77,7 @@ void RobinPlayer::playInternal() {
             LOGI(">>>preload completed!!!");
             //但是需要继续运行，以免在预加载完毕后不能完成seek操作
 //            break;
+            av_free(packet);
             pthread_mutex_unlock(&mutex_seeking);
             continue;
         }
@@ -211,8 +212,8 @@ void RobinPlayer::initInternal(const char *url) {
             //to decode
             if (codecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
                 //to decode video
-                onWarn(CODE_WARN_NOT_FOUND_STREAM_DECODER, "cannot found video stream decoder");
-//                streamDecoders[i] = new VideoStreamDecoder(codecContext);
+//                onWarn(CODE_WARN_NOT_FOUND_STREAM_DECODER, "cannot found video stream decoder");
+                streamDecoders[i] = new VideoStreamDecoder(stream, codecContext);
             } else if (codecParameters->codec_type == AVMEDIA_TYPE_AUDIO) {
                 //to decode audio
                 LOGI(">>>init audio stream decoder...");
@@ -273,10 +274,11 @@ void RobinPlayer::seekTo(int seconds) {
             }
         }
         //为什么只能用-1
-        int result = avformat_seek_file(avFormatContext, -1, INT64_MIN, seconds * AV_TIME_BASE, INT64_MAX, 0);
-        if(result >= 0){
+        int result = avformat_seek_file(avFormatContext, -1, INT64_MIN, seconds * AV_TIME_BASE,
+                                        INT64_MAX, 0);
+        if (result >= 0) {
             LOGI(">>>seek success");
-        } else{
+        } else {
             LOGI(">>>seek failed", seconds);
         }
 
@@ -313,16 +315,18 @@ void RobinPlayer::stateChanged(PLAYER_STATE state) {
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "OCDFAInspection"
+
 void RobinPlayer::setAudioChannel(AUDIO_CHANNEL_TYPE channelType) {
     for (int i = 0; i < streamDecoders.size(); i++) {
         IStreamDecoder *decoder = streamDecoders[i];
         if (decoder != NULL) {
             AudioStreamDecoder *audioStreamDecoder = dynamic_cast<AudioStreamDecoder *>(decoder);
-            if(audioStreamDecoder != NULL){
+            if (audioStreamDecoder != NULL) {
                 audioStreamDecoder->setAudioChannel(channelType);
             }
         }
     }
 }
+
 #pragma clang diagnostic pop
 
