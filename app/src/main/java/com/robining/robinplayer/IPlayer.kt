@@ -65,6 +65,10 @@ interface IPlayer {
 
     fun setCallback(callback: IPlayerCallback)
 
+    fun startRecord(file: File)
+
+    fun stopRecord()
+
     interface IPlayerCallback {
         fun onPlayStateChanged(oldState: PLAYER_STATE, newState: PLAYER_STATE) {}
         fun onReceivedTotalDuration(duration: Double){}

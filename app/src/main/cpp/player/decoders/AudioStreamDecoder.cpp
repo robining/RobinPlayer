@@ -21,7 +21,7 @@ AudioStreamDecoder::AudioStreamDecoder(AVStream *avStream, AVCodecContext *codec
     soundTouch->setSampleRate(44100);
     soundTouch->setChannels(2);
 //    soundTouch->setPitch(1.5f);
-    soundTouch->setTempo(3.5f);
+//    soundTouch->setTempo(1.5f);
     pthread_create(&playerThread, NULL, __initPlayer, this);
 }
 
@@ -87,6 +87,8 @@ void AudioStreamDecoder::playFrame() {
         totalSampleCount += outSampleCount;
         if (outSampleCount > 0) {
             LOGI(">>>TTT:enqueued %d", outSampleCount);
+            JavaBridge::getInstance()->onPlayAudioFrame(outSampleCount * 2 * 2,
+                                                        soundSampleOutBuffer);
             (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf,
                                                     soundSampleOutBuffer,
                                                     static_cast<SLuint32>(outSampleCount * 2 * 2));

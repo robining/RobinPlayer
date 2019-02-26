@@ -65,6 +65,21 @@ class MainActivity : AppCompatActivity(), IPlayer.IPlayerCallback, SeekBar.OnSee
         player.setAudioChannel(AUDIO_CHANNEL.NONE)
     }
 
+    fun startRecord(view: View){
+        val file = File(Environment.getExternalStorageDirectory(),"aac/tttt.aac")
+        if(!file.parentFile.exists()){
+            file.parentFile.mkdirs()
+        }
+        if(!file.exists()){
+            file.createNewFile()
+        }
+        player.startRecord(file)
+    }
+
+    fun stopRecord(view: View){
+        player.stopRecord()
+    }
+
     override fun onPlayStateChanged(oldState: PLAYER_STATE, newState: PLAYER_STATE) {
         super.onPlayStateChanged(oldState, newState)
         when (newState) {

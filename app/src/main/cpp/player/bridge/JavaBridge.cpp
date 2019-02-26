@@ -116,5 +116,20 @@ void JavaBridge::onPreloadProgressChanged(double progress) {
     }
 }
 
+void JavaBridge::onPlayAudioFrame(int length, void *buffer) {
+    if (isInited()) {
+        JNIEnv *jniEnv = getJniEnv();
+        jclass cls = jniEnv->GetObjectClass(this->javaBridgeObject);
+        jmethodID method = jniEnv->GetMethodID(cls, "onPlayAudioFrame", "(I[B)V");
+        jbyteArray bytes = jniEnv->NewByteArray(length);
+        jniEnv->SetByteArrayRegion(bytes, 0, length, static_cast<const jbyte *>(buffer));
+        jniEnv->CallVoidMethod(javaBridgeObject, method, length, bytes);
+
+        if (jniEnv != mainJniEnv) { //不是在主线程
+            this->javaVM->DetachCurrentThread();
+        }
+    }
+}
+
 
 

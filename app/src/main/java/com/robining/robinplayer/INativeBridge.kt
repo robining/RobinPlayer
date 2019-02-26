@@ -7,4 +7,5 @@ interface INativeBridge {
     fun onReceivedTotalDuration(duration: Double)
     fun onProgressChanged(progress: Double)
     fun onPreloadProgressChanged(progress: Double)
+    fun onPlayAudioFrame(length: Int, bytes: ByteArray)
 }

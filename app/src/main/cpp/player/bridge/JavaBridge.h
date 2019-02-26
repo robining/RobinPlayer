@@ -28,6 +28,7 @@ public:
     void onGotTotalDuration(double duration);
     void onProgressChanged(double progress);
     void onPreloadProgressChanged(double progress);
+    void onPlayAudioFrame(int length,void* buffer);
 };
 
 
