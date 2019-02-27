@@ -8,7 +8,7 @@
 
 class SyncHandler {
 public:
-    double audioClock = 0;
+    double audioClock = -1;//-1表示音频没有初始化过
 };
 
 

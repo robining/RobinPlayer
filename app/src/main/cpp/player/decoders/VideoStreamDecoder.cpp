@@ -32,9 +32,9 @@ void VideoStreamDecoder::playFrames() {
 
     while (isRunning) {
         AVFrame *frame = popFrame();
-
         //sync with audio clock
-        if (syncHandler != NULL) {
+        //TODO 此同步应该放到scale转换之后去，因为转换过程也需要耗时
+        if (syncHandler != NULL && syncHandler->audioClock != -1) {
             int64_t pts = av_frame_get_best_effort_timestamp(frame);
             if (pts == AV_NOPTS_VALUE) {
                 pts = 0;
@@ -51,10 +51,12 @@ void VideoStreamDecoder::playFrames() {
         }
 
         AVFrame *yuv420pFrame = NULL;
+        bool scaled = false;
         if (frame->format != AV_PIX_FMT_YUV420P) {
             LOGI(">>>sws to yuv420p");
             //若不是YUV420P格式转换为yuv420p格式
             yuv420pFrame = av_frame_alloc();
+            scaled = true;
 
             if (buffer == NULL) {
                 int bufferSize = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, frameWidth,
@@ -84,7 +86,7 @@ void VideoStreamDecoder::playFrames() {
             av_frame_free(&frame);
         }
 
-        if (yuv420pFrame != NULL) {
+        if (scaled) {
             av_frame_free(&yuv420pFrame);
         }
     }
