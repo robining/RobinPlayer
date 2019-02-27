@@ -33,19 +33,12 @@ void IStreamDecoder::processPacketQueue() {
         return;
     }
     isRunning = true;
-    LOGI(">>>start decoder...:%d", (unsigned int) pthread_self());
     while (isRunning) {
         //获取队列最前端的Packet
         pthread_mutex_lock(&mutexDecodePacket);
-//        if (seeking) {
-//            LOGI(">>>-------------decode packet,wait seek complete...");
-//            pthread_cond_wait(&condIsSeeking, NULL);
-//            LOGI(">>>-------------decode packet,seek completed...");
-//        }
         if (packetQueue.size() == 0) {
             LOGI(">>>-------------decode packet,wait packet queue fill data...");
             pthread_cond_wait(&condPacketQueueHaveData, &mutexDecodePacket);
-            LOGI(">>>-------------decode packet,packet queue filled data...");
         }
         AVPacket *packet = packetQueue.front();
         packetQueue.pop();
@@ -54,16 +47,14 @@ void IStreamDecoder::processPacketQueue() {
             pthread_cond_signal(&condPacketBufferFulled);
         }
         pthread_mutex_unlock(&mutexDecodePacket);
-        LOGI(">>>ready to decode a packet...");
 
         int result = avcodec_send_packet(codecContext, packet);
         if (result < 0) {
             if (result == AVERROR_EOF) {//the end of file
-                LOGE(">>>send packet completed!");
-                av_free(packet);
+                av_packet_free(&packet);
                 continue;
-            }else {//found a exception
-                av_free(packet);
+            } else {//found a exception
+                av_packet_free(&packet);
                 LOGE(">>>send packet:%s", av_err2str(result));
                 continue;
             }
@@ -74,11 +65,10 @@ void IStreamDecoder::processPacketQueue() {
             result = avcodec_receive_frame(codecContext, frame);
             if (result < 0) {
                 if (result == AVERROR_EOF) {//the end of file
-                    LOGE(">>>receive frame completed!");
-                    av_free(frame);
+                    av_frame_free(&frame);
                     break;
                 } else {//found a exception
-                    av_free(frame);
+                    av_frame_free(&frame);
                     LOGE(">>>receive frame:%s", av_err2str(result));
                     break;
                 }
@@ -88,6 +78,7 @@ void IStreamDecoder::processPacketQueue() {
             JavaBridge::getInstance()->onPreloadProgressChanged(progress);
 
             if (seeking) {
+                av_frame_free(&frame);
                 break; //丢弃当前播放的数据
             }
 
@@ -104,8 +95,7 @@ void IStreamDecoder::processPacketQueue() {
         }
 
 
-        av_free(packet);
-        LOGI(">>>decoded a packet...");
+        av_packet_free(&packet);
     }
 }
 
@@ -126,7 +116,6 @@ void IStreamDecoder::enqueue(AVPacket *packet) {
 }
 
 AVFrame *IStreamDecoder::popFrame() {
-    LOGI(">>>popframe start...at thread:%d", (unsigned int) pthread_self());
     pthread_mutex_lock(&mutexDecodeFrame);
     if (framesQueue.size() == 0) {
         pthread_cond_wait(&condFrameQueueHaveFrame, &mutexDecodeFrame);
@@ -138,8 +127,6 @@ AVFrame *IStreamDecoder::popFrame() {
         pthread_cond_signal(&condFrameBufferFulled);
     }
     pthread_mutex_unlock(&mutexDecodeFrame);
-
-    LOGI(">>>popframe end...");
     return frame;
 }
 
@@ -179,6 +166,7 @@ IStreamDecoder::~IStreamDecoder() {
 }
 
 void IStreamDecoder::clearQueue() {
+    //TODO 是否应该循环释放packet
     std::queue<AVPacket *> empty;
     std::swap(empty, packetQueue);
     std::queue<AVFrame *> emptyFrame;

@@ -63,40 +63,35 @@ void RobinPlayer::playInternal() {
         return;
     }
 
-    LOGI(">>>player play...and streamDecoder count:%d", streamDecoders.size());
     stateChanged(PLAYING);
 
     //decoding
     while (state == PLAYING) {
         AVPacket *packet = av_packet_alloc();
-        LOGI(">>>ready read a packet");
         pthread_mutex_lock(&mutex_seeking);
         int result = av_read_frame(avFormatContext, packet);
         if (result < 0) {
             //the end
-            LOGI(">>>preload completed!!!");
             //但是需要继续运行，以免在预加载完毕后不能完成seek操作
 //            break;
-            av_free(packet);
+            av_packet_free(&packet);
             pthread_mutex_unlock(&mutex_seeking);
             continue;
         }
-        LOGI(">>>read packet continue");
         IStreamDecoder *streamDecoder = streamDecoders[packet->stream_index];
         if (streamDecoder != NULL) {//only process support type
             streamDecoder->enqueue(packet);
         } else {
-            av_free(packet);
+            av_packet_free(&packet);
         }
 
         pthread_mutex_unlock(&mutex_seeking);
     }
 
-    LOGI(">>> packet read completed");
+    LOGI(">>>robin player read packet stopped");
 }
 
 void RobinPlayer::pause() {
-    LOGI(">>>player pause...");
     if (state == PLAYING) {
         stateChanged(PAUSED);
         for (IStreamDecoder *decoder : streamDecoders) {
@@ -108,7 +103,6 @@ void RobinPlayer::pause() {
 }
 
 void RobinPlayer::resume() {
-    LOGI(">>>player resume...");
     if (state == PAUSED) {
         stateChanged(PLAYING);
         for (IStreamDecoder *decoder : streamDecoders) {
@@ -120,7 +114,6 @@ void RobinPlayer::resume() {
 }
 
 void RobinPlayer::stop() {
-    LOGI(">>>player stop...");
     this->url = NULL;
     if (state == PLAYING || state == PAUSED) {
         stateChanged(STOPED);
@@ -131,7 +124,7 @@ void RobinPlayer::stop() {
         for (IStreamDecoder *decoder : streamDecoders) {
             if (decoder != NULL) {
                 decoder->stop();
-                free(decoder);
+                delete decoder; //释放内存
             }
         }
 
@@ -143,20 +136,11 @@ void RobinPlayer::stop() {
 }
 
 void RobinPlayer::release() {
-    LOGI(">>>player release...");
     stop();
     stateChanged(NOT_INIT);
-    for (IStreamDecoder *decoder : streamDecoders) {
-        if (decoder != NULL) {
-            decoder->release();
-        }
-
-        decoder = NULL;
-    }
 }
 
 void RobinPlayer::initInternal(const char *url) {
-    LOGI(">>>player init...%s at thread:%d", url, (unsigned int) pthread_self());
     stateChanged(INITING);
     try {
         //open the input
@@ -212,11 +196,9 @@ void RobinPlayer::initInternal(const char *url) {
             //to decode
             if (codecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
                 //to decode video
-//                onWarn(CODE_WARN_NOT_FOUND_STREAM_DECODER, "cannot found video stream decoder");
                 streamDecoders[i] = new VideoStreamDecoder(stream, codecContext);
             } else if (codecParameters->codec_type == AVMEDIA_TYPE_AUDIO) {
                 //to decode audio
-                LOGI(">>>init audio stream decoder...");
                 streamDecoders[i] = new AudioStreamDecoder(stream, codecContext);
             } else {
                 onWarn(CODE_WARN_NOT_FOUND_STREAM_DECODER, "cannot found unknown stream decoder");
@@ -249,7 +231,6 @@ void RobinPlayer::seekTo(int seconds) {
     }
     if (avFormatContext != NULL && &streamDecoders != NULL) {
         pthread_mutex_lock(&mutex_seeking);
-        LOGI(">>>will seek to:%d", seconds);
 //        for (int i = 0; i < streamDecoders.size(); i++) {
 //            IStreamDecoder *decoder = streamDecoders[i];
 //            if (decoder != NULL) {
@@ -277,9 +258,9 @@ void RobinPlayer::seekTo(int seconds) {
         int result = avformat_seek_file(avFormatContext, -1, INT64_MIN, seconds * AV_TIME_BASE,
                                         INT64_MAX, 0);
         if (result >= 0) {
-            LOGI(">>>seek success");
+            LOGI(">>>seek success:%d", seconds);
         } else {
-            LOGI(">>>seek failed", seconds);
+            LOGI(">>>seek failed:%d", seconds);
         }
 
         for (int i = 0; i < streamDecoders.size(); i++) {
@@ -290,7 +271,6 @@ void RobinPlayer::seekTo(int seconds) {
         }
 
         pthread_mutex_unlock(&mutex_seeking);
-        LOGI(">>>seeked to:%d", seconds);
     }
 }
 

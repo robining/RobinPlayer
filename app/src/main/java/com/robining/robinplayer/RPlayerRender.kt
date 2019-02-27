@@ -108,17 +108,19 @@ class RPlayerRender(private val context: Context) : GLSurfaceView.Renderer {
     }
 
     private fun renderYUV() {
-        //        float ratioW = 1,ratioH = 1;
-        //        if(width_yuv > maxWidth){
-        //            ratioW = maxWidth / (float)width_yuv;
-        //        }
-        //        if(height_yuv > maxHeight){
-        //            ratioH = maxHeight / (float)height_yuv;
-        //        }
-        //
-        //        float ratio = Math.min(ratioW,ratioH);
-        //
-        //        GLES20.glViewport(0,0, (int) (maxWidth * ratio), (int) (maxHeight * ratio));
+//        var ratioW = 1f
+//        var ratioH = 1f
+//
+//        if (width_yuv > maxWidth) {
+//            ratioW = maxWidth.toFloat() / width_yuv.toFloat()
+//        }
+//        if (height_yuv > maxHeight) {
+//            ratioH = maxHeight.toFloat() / height_yuv.toFloat()
+//        }
+//
+//        val ratio = Math.min (ratioW, ratioH)
+//
+//        GLES20.glViewport(0, 0, (maxWidth * ratio).toInt(), (maxHeight * ratio).toInt())
         GLES20.glViewport(0, 0, 1920, 1080)
         if (width_yuv > 0 && height_yuv > 0 && y != null && u != null && v != null) {
             GLES20.glUseProgram(program_yuv)
@@ -145,6 +147,8 @@ class RPlayerRender(private val context: Context) : GLSurfaceView.Renderer {
             GLES20.glUniform1i(sampler_u, 1)
             GLES20.glUniform1i(sampler_v, 2)
 
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+
             y!!.clear()
             u!!.clear()
             v!!.clear()
@@ -152,7 +156,6 @@ class RPlayerRender(private val context: Context) : GLSurfaceView.Renderer {
             u = null
             v = null
 
-            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         }
     }
 }

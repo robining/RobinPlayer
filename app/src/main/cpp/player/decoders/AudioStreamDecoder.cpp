@@ -27,7 +27,6 @@ AudioStreamDecoder::AudioStreamDecoder(AVStream *avStream, AVCodecContext *codec
 
 
 int *AudioStreamDecoder::readOneFrame() {
-    LOGI(">>>player ready got frame");
     AVFrame *frame = popFrame();
     double progress = frame->pts * av_q2d(this->stream->time_base);
     JavaBridge::getInstance()->onProgressChanged(progress);
@@ -41,9 +40,9 @@ int *AudioStreamDecoder::readOneFrame() {
                                     NULL, NULL);
     if (!swrContext || swr_init(swrContext) < 0) {
         LOGE(">>>sws context init failed");
-        av_free(frame);
+        av_frame_free(&frame);
         if (swrContext != NULL) {
-            av_free(swrContext);
+            swr_free(&swrContext);
         }
         return NULL;
     }
@@ -53,29 +52,25 @@ int *AudioStreamDecoder::readOneFrame() {
     int outChannels = av_get_channel_layout_nb_channels(AV_CH_LAYOUT_STEREO);
     int dataSize = nb * outChannels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16);
     if (androidSimpleBufferQueueItf == NULL) {
-        av_free(frame);
-        av_free(swrContext);
+        av_frame_free(&frame);
+        swr_free(&swrContext);
         return NULL;
     }
 
     int result[] = {dataSize, nb};
-    LOGI(">>>TTT:......%d,%d,%d", dataSize, nb, outChannels);
-    av_free(frame);
-    av_free(swrContext);
+    av_frame_free(&frame);
+    swr_free(&swrContext);
     return result;
 }
 
 void AudioStreamDecoder::playFrame() {
-    LOGI(">>>TTT:----------------------------");
     int *result = readOneFrame();
     if (result == NULL) {
-        LOGI(">>>TTT:enqueued FAIL");
         return;
     }
     int nb = result[1];
     int dataSize = result[0];
     int sampleBufferSize = dataSize / 2 + 1;
-    LOGI(">>>TTT:enqueued READY%d,%d", nb, dataSize);
 
     for (int i = 0; i < sampleBufferSize; i++) {
         soundSampleInBuffer[i] = outBuffer[i * 2] | (outBuffer[i * 2 + 1] << 8);
@@ -86,10 +81,8 @@ void AudioStreamDecoder::playFrame() {
     uint totalSampleCount = 0;
     do {
         outSampleCount = soundTouch->receiveSamples(soundSampleOutBuffer, static_cast<uint>(nb));
-        LOGI(">>>TTT:received %d", outSampleCount);
         totalSampleCount += outSampleCount;
         if (outSampleCount > 0) {
-            LOGI(">>>TTT:enqueued %d", outSampleCount);
             JavaBridge::getInstance()->onPlayAudioFrame(outSampleCount * 2 * 2,
                                                         soundSampleOutBuffer);
             (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf,
