@@ -121,6 +121,11 @@ void RobinPlayer::stop() {
             avformat_free_context(avFormatContext);
             avFormatContext = NULL;
         }
+
+        if(syncHandler != NULL){
+            delete syncHandler;
+        }
+
         for (IStreamDecoder *decoder : streamDecoders) {
             if (decoder != NULL) {
                 decoder->stop();
@@ -163,7 +168,7 @@ void RobinPlayer::initInternal(const char *url) {
         //find stream types
         std::vector<IStreamDecoder *> decoders(avFormatContext->nb_streams);
         streamDecoders = decoders;
-
+        syncHandler = new SyncHandler();
         for (int i = 0; i < avFormatContext->nb_streams; i++) {
             AVStream *stream = avFormatContext->streams[i];
             AVCodecParameters *codecParameters = stream->codecpar;
@@ -196,10 +201,10 @@ void RobinPlayer::initInternal(const char *url) {
             //to decode
             if (codecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
                 //to decode video
-                streamDecoders[i] = new VideoStreamDecoder(stream, codecContext);
+                streamDecoders[i] = new VideoStreamDecoder(stream, codecContext,syncHandler);
             } else if (codecParameters->codec_type == AVMEDIA_TYPE_AUDIO) {
                 //to decode audio
-                streamDecoders[i] = new AudioStreamDecoder(stream, codecContext);
+                streamDecoders[i] = new AudioStreamDecoder(stream, codecContext,syncHandler);
             } else {
                 onWarn(CODE_WARN_NOT_FOUND_STREAM_DECODER, "cannot found unknown stream decoder");
                 //not support this codec_type at this time

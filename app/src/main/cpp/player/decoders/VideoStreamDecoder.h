@@ -13,7 +13,7 @@ extern "C"{
 
 class VideoStreamDecoder : public IStreamDecoder{
 public:
-    VideoStreamDecoder(AVStream* avStream,AVCodecContext* codecContext);
+    VideoStreamDecoder(AVStream* avStream,AVCodecContext* codecContext,SyncHandler* syncHandler);
     void playFrames();
 
 private:

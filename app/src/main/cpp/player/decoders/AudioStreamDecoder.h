@@ -20,7 +20,7 @@ class AudioStreamDecoder : public IStreamDecoder {
 public:
     pthread_t playerThread;
 
-    AudioStreamDecoder(AVStream *avStream, AVCodecContext *codecContext);
+    AudioStreamDecoder(AVStream *avStream, AVCodecContext *codecContext,SyncHandler* syncHandler);
 
     ~AudioStreamDecoder();
 

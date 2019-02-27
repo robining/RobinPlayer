@@ -11,8 +11,8 @@ void *__initPlayer(void *data) {
     pthread_exit(&audioStreamDecoder->playerThread);
 }
 
-AudioStreamDecoder::AudioStreamDecoder(AVStream *avStream, AVCodecContext *codecContext)
-        : IStreamDecoder(avStream, codecContext) {
+AudioStreamDecoder::AudioStreamDecoder(AVStream *avStream, AVCodecContext *codecContext,SyncHandler* syncHandler)
+        : IStreamDecoder(avStream, codecContext,syncHandler) {
     outBuffer = static_cast<uint8_t *>(malloc(static_cast<size_t>(44100 * 2 * 2)));
     soundSampleInBuffer = static_cast<SAMPLETYPE *>(malloc(44100 * 2 * 2 * 2 / 3));
     soundSampleOutBuffer = static_cast<SAMPLETYPE *>(malloc(44100 * 2 * 2 * 2 / 3));
@@ -31,6 +31,9 @@ int *AudioStreamDecoder::readOneFrame() {
     double progress = frame->pts * av_q2d(this->stream->time_base);
     JavaBridge::getInstance()->onProgressChanged(progress);
     LOGI(">>>player got a frame");
+    if(syncHandler != NULL){
+        syncHandler->audioClock = progress;
+    }
 
     SwrContext *swrContext = NULL;
     //此处设置的44100和2 关系到outBuffer大小初始化

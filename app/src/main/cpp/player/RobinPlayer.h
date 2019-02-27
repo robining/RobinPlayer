@@ -27,6 +27,7 @@ private:
     pthread_mutex_t mutex_init;
     pthread_cond_t cond_init_over;
     pthread_mutex_t mutex_seeking;
+    SyncHandler *syncHandler = NULL;
 
     /**
      * 播放器状态更改

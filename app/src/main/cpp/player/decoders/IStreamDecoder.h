@@ -10,10 +10,12 @@
 #include <queue>
 #include <pthread.h>
 #include "../bridge/JavaBridge.h"
+#include "SyncHandler.h"
 
 extern "C" {
 #include "../../include/libavformat/avformat.h"
 #include "../../include/libavcodec/avcodec.h"
+#include "../../include/libavutil/time.h"
 };
 
 class IStreamDecoder {
@@ -24,6 +26,7 @@ protected:
     bool isRunning = false;
     bool isPaused = false;
     bool seeking = false;
+    SyncHandler *syncHandler = NULL;
 private:
     const int MAX_QUEUE_SIZE = 50; //注意配置 否则可能会出现内存溢出
     pthread_mutex_t mutexDecodePacket;
@@ -41,7 +44,7 @@ public:
     pthread_t decodePacketThread;
     AVStream* stream;
 
-    IStreamDecoder(AVStream* stream,AVCodecContext* avCodecContext);
+    IStreamDecoder(AVStream* stream,AVCodecContext* avCodecContext,SyncHandler* syncHandler);
     ~IStreamDecoder();
 
     AVFrame* popFrame();

@@ -1,7 +1,6 @@
 //
 // Created by Robining on 2019/1/11.
 //
-
 #include "VideoStreamDecoder.h"
 
 void *__playVideo(void *data) {
@@ -11,8 +10,9 @@ void *__playVideo(void *data) {
     pthread_exit(&currentThread);
 }
 
-VideoStreamDecoder::VideoStreamDecoder(AVStream *avStream, AVCodecContext *codecContext)
-        : IStreamDecoder(avStream, codecContext) {
+VideoStreamDecoder::VideoStreamDecoder(AVStream *avStream, AVCodecContext *codecContext,
+                                       SyncHandler *syncHandler)
+        : IStreamDecoder(avStream, codecContext, syncHandler) {
     pthread_create(&playerThread, NULL, __playVideo, this);
 }
 
@@ -32,19 +32,38 @@ void VideoStreamDecoder::playFrames() {
 
     while (isRunning) {
         AVFrame *frame = popFrame();
+
+        //sync with audio clock
+        if (syncHandler != NULL) {
+            int64_t pts = av_frame_get_best_effort_timestamp(frame);
+            if (pts == AV_NOPTS_VALUE) {
+                pts = 0;
+            }
+            double clock = pts * av_q2d(stream->time_base);
+            double diffWithAudioClock = clock - syncHandler->audioClock;
+            if (diffWithAudioClock < 0) {
+                diffWithAudioClock = 0;
+            }
+
+            LOGE(">>>video play:%f   audio play:%f,  need sleep:%f", clock, syncHandler->audioClock,
+                 diffWithAudioClock);
+            av_usleep(static_cast<unsigned int>(diffWithAudioClock * 1000000));
+        }
+
         AVFrame *yuv420pFrame = NULL;
         if (frame->format != AV_PIX_FMT_YUV420P) {
             LOGI(">>>sws to yuv420p");
             //若不是YUV420P格式转换为yuv420p格式
             yuv420pFrame = av_frame_alloc();
 
-            if(buffer == NULL){
+            if (buffer == NULL) {
                 int bufferSize = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, frameWidth,
                                                           frameHeight, 1);
                 buffer = static_cast<uint8_t *>(av_malloc(bufferSize * sizeof(uint8_t)));
             }
 
-            av_image_fill_arrays(yuv420pFrame->data, yuv420pFrame->linesize, buffer, AV_PIX_FMT_YUV420P,
+            av_image_fill_arrays(yuv420pFrame->data, yuv420pFrame->linesize, buffer,
+                                 AV_PIX_FMT_YUV420P,
                                  frameWidth, frameHeight, 1);
             sws_scale(swsContext,
                       frame->data, //为输入图像数据各颜色通道的buffer指针数组
@@ -58,7 +77,8 @@ void VideoStreamDecoder::playFrames() {
             yuv420pFrame = frame;
         }
 
-        JavaBridge::getInstance()->onPlayVideoFrame(frameWidth, frameHeight, yuv420pFrame->data[0], yuv420pFrame->data[1], yuv420pFrame->data[2]);
+        JavaBridge::getInstance()->onPlayVideoFrame(frameWidth, frameHeight, yuv420pFrame->data[0],
+                                                    yuv420pFrame->data[1], yuv420pFrame->data[2]);
 
         if (frame != NULL) {
             av_frame_free(&frame);

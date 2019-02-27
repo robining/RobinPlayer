@@ -35,6 +35,8 @@ add_library( # Sets the name of the library.
         src/main/cpp/player/decoders/VideoStreamDecoder.cpp
         src/main/cpp/player/decoders/IStreamDecoder.h
         src/main/cpp/player/decoders/IStreamDecoder.cpp
+        src/main/cpp/player/decoders/SyncHandler.h
+        src/main/cpp/player/decoders/SyncHandler.cpp
         src/main/cpp/player/bridge/JavaBridge.h
         src/main/cpp/player/bridge/JavaBridge.cpp
         )

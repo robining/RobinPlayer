@@ -4,9 +4,10 @@
 
 #include "IStreamDecoder.h"
 
-IStreamDecoder::IStreamDecoder(AVStream *stream, AVCodecContext *avCodecContext) {
+IStreamDecoder::IStreamDecoder(AVStream *stream, AVCodecContext *avCodecContext,SyncHandler* syncHandler) {
     this->codecContext = avCodecContext;
     this->stream = stream;
+    this->syncHandler = syncHandler;
     pthread_mutex_init(&mutexDecodePacket, NULL);
     pthread_cond_init(&condPacketQueueHaveData, NULL);
     pthread_mutex_init(&mutexDecodeFrame, NULL);
