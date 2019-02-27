@@ -44,7 +44,7 @@ void VideoStreamDecoder::playFrames() {
                 buffer = static_cast<uint8_t *>(av_malloc(bufferSize * sizeof(uint8_t)));
             }
 
-            av_image_fill_arrays(yuv420pFrame->data, frame->linesize, buffer, AV_PIX_FMT_YUV420P,
+            av_image_fill_arrays(yuv420pFrame->data, yuv420pFrame->linesize, buffer, AV_PIX_FMT_YUV420P,
                                  frameWidth, frameHeight, 1);
             sws_scale(swsContext,
                       frame->data, //为输入图像数据各颜色通道的buffer指针数组

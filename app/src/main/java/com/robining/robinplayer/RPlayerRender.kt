@@ -108,20 +108,20 @@ class RPlayerRender(private val context: Context) : GLSurfaceView.Renderer {
     }
 
     private fun renderYUV() {
-//        var ratioW = 1f
-//        var ratioH = 1f
-//
-//        if (width_yuv > maxWidth) {
-//            ratioW = maxWidth.toFloat() / width_yuv.toFloat()
-//        }
-//        if (height_yuv > maxHeight) {
-//            ratioH = maxHeight.toFloat() / height_yuv.toFloat()
-//        }
-//
-//        val ratio = Math.min (ratioW, ratioH)
-//
-//        GLES20.glViewport(0, 0, (maxWidth * ratio).toInt(), (maxHeight * ratio).toInt())
-        GLES20.glViewport(0, 0, 1920, 1080)
+        var ratioW = 1f
+        var ratioH = 1f
+
+        if (width_yuv > maxWidth) {
+            ratioW = maxWidth.toFloat() / width_yuv.toFloat()
+        }
+        if (height_yuv > maxHeight) {
+            ratioH = maxHeight.toFloat() / height_yuv.toFloat()
+        }
+
+        val ratio = Math.min (ratioW, ratioH)
+
+        GLES20.glViewport(0, 0, (maxWidth * ratio).toInt(), (maxHeight * ratio).toInt())
+//        GLES20.glViewport(0, 0, 1920, 1080)
         if (width_yuv > 0 && height_yuv > 0 && y != null && u != null && v != null) {
             GLES20.glUseProgram(program_yuv)
 
