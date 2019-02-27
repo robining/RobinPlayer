@@ -4,7 +4,8 @@
 
 #include "IStreamDecoder.h"
 
-IStreamDecoder::IStreamDecoder(AVStream *stream, AVCodecContext *avCodecContext,SyncHandler* syncHandler) {
+IStreamDecoder::IStreamDecoder(AVStream *stream, AVCodecContext *avCodecContext,
+                               SyncHandler *syncHandler) {
     this->codecContext = avCodecContext;
     this->stream = stream;
     this->syncHandler = syncHandler;
@@ -15,6 +16,7 @@ IStreamDecoder::IStreamDecoder(AVStream *stream, AVCodecContext *avCodecContext,
     pthread_cond_init(&condPacketBufferFulled, NULL);
 
     pthread_cond_init(&condIsSeeking, NULL);
+    pthread_cond_init(&condIsPaused, NULL);
 
     startLoopDecodeThread();
 }
@@ -117,6 +119,9 @@ void IStreamDecoder::enqueue(AVPacket *packet) {
 }
 
 AVFrame *IStreamDecoder::popFrame() {
+    if (isPaused) {
+        pthread_cond_wait(&condIsPaused, NULL);
+    }
     pthread_mutex_lock(&mutexDecodeFrame);
     if (framesQueue.size() == 0) {
         pthread_cond_wait(&condFrameQueueHaveFrame, &mutexDecodeFrame);
@@ -142,6 +147,7 @@ void IStreamDecoder::pause() {
 
 void IStreamDecoder::resume() {
     isPaused = false;
+    pthread_cond_signal(&condIsPaused);
 }
 
 void IStreamDecoder::stop() {
@@ -163,6 +169,8 @@ IStreamDecoder::~IStreamDecoder() {
     pthread_mutex_destroy(&mutexDecodeFrame);
     pthread_cond_destroy(&condPacketQueueHaveData);
     pthread_cond_destroy(&condFrameQueueHaveFrame);
+    pthread_cond_destroy(&condIsSeeking);
+    pthread_cond_destroy(&condIsPaused);
     pthread_exit(&decodePacketThread);
 }
 

@@ -39,6 +39,7 @@ private:
     pthread_cond_t condFrameBufferFulled;
 
     pthread_cond_t condIsSeeking;
+    pthread_cond_t condIsPaused;
     void startLoopDecodeThread();
 public:
     pthread_t decodePacketThread;
