@@ -47,6 +47,10 @@ void VideoStreamDecoder::playFrames() {
 
             LOGE(">>>video play:%f   audio play:%f,  need sleep:%f", clock, syncHandler->audioClock,
                  diffWithAudioClock);
+            if(diffWithAudioClock > 1){ //如果大于一定时间 直接放弃该帧...（seek后可能会相差很多）
+                av_frame_free(&frame);
+                continue;
+            }
             av_usleep(static_cast<unsigned int>(diffWithAudioClock * 1000000));
         }
 

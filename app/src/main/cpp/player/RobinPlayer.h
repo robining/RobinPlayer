@@ -29,6 +29,13 @@ private:
     pthread_mutex_t mutex_seeking;
     SyncHandler *syncHandler = NULL;
 
+    pthread_cond_t condSeeking;
+    bool seeking = false;
+
+    int seekTargetSeconds = 0;
+    static void *__seek(void* data);
+    void seekInternal(int seconds);
+
     /**
      * 播放器状态更改
      * @param oldState 上一次的状态

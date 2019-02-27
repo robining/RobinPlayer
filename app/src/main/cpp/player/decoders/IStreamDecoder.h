@@ -40,6 +40,8 @@ private:
 
     pthread_cond_t condIsSeeking;
     pthread_cond_t condIsPaused;
+
+    pthread_mutex_t mutexSeeking;
     void startLoopDecodeThread();
 public:
     pthread_t decodePacketThread;

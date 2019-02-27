@@ -18,6 +18,8 @@ IStreamDecoder::IStreamDecoder(AVStream *stream, AVCodecContext *avCodecContext,
     pthread_cond_init(&condIsSeeking, NULL);
     pthread_cond_init(&condIsPaused, NULL);
 
+    pthread_mutex_init(&mutexSeeking,NULL);
+
     startLoopDecodeThread();
 }
 
@@ -43,12 +45,21 @@ void IStreamDecoder::processPacketQueue() {
             LOGI(">>>-------------decode packet,wait packet queue fill data...");
             pthread_cond_wait(&condPacketQueueHaveData, &mutexDecodePacket);
         }
+
+        pthread_mutex_lock(&mutexSeeking);
+        if(packetQueue.size() == 0){ //可能在seek的时候又被清空了
+            pthread_mutex_unlock(&mutexDecodePacket);
+            pthread_mutex_unlock(&mutexSeeking);
+            continue;
+        }
         AVPacket *packet = packetQueue.front();
         packetQueue.pop();
 
         if (packetQueue.size() <= MAX_QUEUE_SIZE) {
             pthread_cond_signal(&condPacketBufferFulled);
         }
+
+        pthread_mutex_unlock(&mutexSeeking);
         pthread_mutex_unlock(&mutexDecodePacket);
 
         int result = avcodec_send_packet(codecContext, packet);
@@ -171,6 +182,7 @@ IStreamDecoder::~IStreamDecoder() {
     pthread_cond_destroy(&condFrameQueueHaveFrame);
     pthread_cond_destroy(&condIsSeeking);
     pthread_cond_destroy(&condIsPaused);
+    pthread_mutex_destroy(&mutexSeeking);
     pthread_exit(&decodePacketThread);
 }
 
@@ -185,13 +197,13 @@ void IStreamDecoder::clearQueue() {
 }
 
 void IStreamDecoder::changeSeekingState(bool isSeeking) {
-    pthread_mutex_lock(&mutexDecodePacket);
+    pthread_mutex_lock(&mutexSeeking);
     this->seeking = isSeeking;
     if (!isSeeking) {
 //        pthread_cond_signal(&condIsSeeking);
     } else {
         clearQueue();
     }
-    pthread_mutex_unlock(&mutexDecodePacket);
+    pthread_mutex_unlock(&mutexSeeking);
 }
 
