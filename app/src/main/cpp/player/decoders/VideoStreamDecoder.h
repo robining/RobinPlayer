@@ -14,10 +14,11 @@ extern "C"{
 class VideoStreamDecoder : public IStreamDecoder{
 public:
     VideoStreamDecoder(AVStream* avStream,AVCodecContext* codecContext,SyncHandler* syncHandler);
-    void playFrames();
-
+    ~VideoStreamDecoder();
 private:
     pthread_t playerThread;
+    static void *__internalPlayVideo(void *data);
+    void playFrames();
 };
 
 

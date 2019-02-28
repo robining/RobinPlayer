@@ -9,13 +9,13 @@ interface IPlayer {
      * 使用本地文件初始化
      */
     @Throws(Exception::class)
-    fun init(file: File)
+    fun prepare(file: File)
 
     /**
      * 使用网络路径初始化
      */
     @Throws(Exception::class)
-    fun init(url: String)
+    fun prepare(url: String)
 
     /**
      * 设置渲染接口

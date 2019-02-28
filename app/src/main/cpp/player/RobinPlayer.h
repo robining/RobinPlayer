@@ -21,20 +21,29 @@ extern "C" {
 
 class RobinPlayer : public IPlayer {
 private:
+    const char *url;
+    pthread_t thread_init;
+    pthread_t thread_play;
+
     AVFormatContext *avFormatContext = NULL;
     std::vector<IStreamDecoder *> streamDecoders;
     PLAYER_STATE state = NOT_INIT;
     pthread_mutex_t mutex_init;
     pthread_cond_t cond_init_over;
-    pthread_mutex_t mutex_seeking;
     SyncHandler *syncHandler = NULL;
 
+    pthread_t threadSeeking = NULL;
     pthread_cond_t condSeeking;
     bool seeking = false;
 
     int seekTargetSeconds = 0;
     static void *__seek(void* data);
     void seekInternal(int seconds);
+    static void *__init(void *data);
+    void initInternal(const char *url);
+    static void *__play(void *data);
+    void playInternal();
+
 
     /**
      * 播放器状态更改
@@ -62,15 +71,7 @@ private:
 public:
     RobinPlayer();
 
-    const char *url;
-    pthread_t thread_init;
-    pthread_t thread_play;
-
-    void initInternal(const char *url);
-
     void init(const char *url);
-
-    void playInternal();
 
     void play();
 

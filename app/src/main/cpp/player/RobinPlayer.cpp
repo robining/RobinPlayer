@@ -9,27 +9,29 @@ RobinPlayer::RobinPlayer() {
     avformat_network_init();
 }
 
-void *__init(void *data) {
+void *RobinPlayer::__init(void *data) {
     RobinPlayer *player = static_cast<RobinPlayer *>(data);
     player->initInternal(player->url);
-    pthread_exit(&player->thread_init);
+    pthread_t self = pthread_self();
+    pthread_exit(&self);
 }
 
 void RobinPlayer::init(const char *url) {
+    LOGI(">>>A111:ready release old player");
     release();
 
     pthread_mutex_init(&mutex_init, NULL);
     pthread_cond_init(&cond_init_over, NULL);
-    pthread_mutex_init(&mutex_seeking, NULL);
     pthread_cond_init(&condSeeking, NULL);
 
+    LOGI(">>>A111:ready goto init player");
     pthread_mutex_lock(&mutex_init);
+    LOGI(">>>A111:init player");
     this->url = url;
     pthread_create(&thread_init, NULL, __init, this);
-//    initInternal(url);
 }
 
-void *__play(void *data) {
+void *RobinPlayer::__play(void *data) {
     RobinPlayer *robinPlayer = static_cast<RobinPlayer *>(data);
     robinPlayer->playInternal();
     pthread_exit(&robinPlayer->thread_play);
@@ -116,6 +118,13 @@ void RobinPlayer::stop() {
     this->url = NULL;
     if (state == PLAYING || state == PAUSED) {
         stateChanged(STOPED);
+//        if (thread_init != NULL) {
+//            pthread_exit(&thread_init);
+//        }
+//        if (thread_play != NULL) {
+//            pthread_exit(&thread_play);
+//        }
+
         if (avFormatContext != NULL) {
             avformat_free_context(avFormatContext);
             avFormatContext = NULL;
@@ -125,18 +134,23 @@ void RobinPlayer::stop() {
             delete syncHandler;
         }
 
+        LOGI(">>>A111:ready free decoders");
         for (IStreamDecoder *decoder : streamDecoders) {
             if (decoder != NULL) {
                 decoder->stop();
+                LOGI(">>>A111:freed a decoder 0 ");
                 delete decoder; //释放内存
+                decoder = NULL;
+                LOGI(">>>A111:freed a decoder 1");
             }
         }
-
+        LOGI(">>>A111:freed all decoder");
         streamDecoders.clear();
         pthread_mutex_destroy(&mutex_init);
         pthread_cond_destroy(&cond_init_over);
-        pthread_mutex_destroy(&mutex_seeking);
         pthread_cond_destroy(&condSeeking);
+        seeking = false;
+        seekTargetSeconds = 0;
     }
 }
 
@@ -238,33 +252,8 @@ void *RobinPlayer::__seek(void *data) {
     pthread_exit(&self);
 }
 
-int64_t getCurrentTime()      //直接调用这个函数就行了，返回值最好是int64_t，long long应该也可以
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);    //该函数在sys/time.h头文件中
-    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
-}
-
 void RobinPlayer::seekInternal(int seconds) {
-    pthread_mutex_lock(&mutex_seeking);
     seeking = true;
-//        for (int i = 0; i < streamDecoders.size(); i++) {
-//            IStreamDecoder *decoder = streamDecoders[i];
-//            if (decoder != NULL) {
-//                decoder->changeSeekingState(true);
-//
-//                int result = avformat_seek_file(avFormatContext, decoder->stream->index, INT64_MIN, seconds * AV_TIME_BASE, INT64_MAX, 0);
-//                if(result >= 0){
-//                    LOGI(">>>seek success");
-//                } else{
-//                    LOGI(">>>seek failed", seconds);
-//                }
-//
-//                decoder->changeSeekingState(false);
-//            }
-//        }
-
-
     clock_t start = clock();
     LOGE(">>>seek start %ld", start);
     for (int i = 0; i < streamDecoders.size(); i++) {
@@ -294,7 +283,6 @@ void RobinPlayer::seekInternal(int seconds) {
     LOGE(">>>seek end at:%ld, costed:%f", end, costed);
     seeking = false;
     pthread_cond_signal(&condSeeking);
-    pthread_mutex_unlock(&mutex_seeking);
 }
 
 
@@ -303,13 +291,13 @@ void RobinPlayer::seekTo(int seconds) {
         return;
     }
     if (avFormatContext != NULL && &streamDecoders != NULL) {
-        if (seeking) {
+        if(seeking){
             return;
         }
         seekTargetSeconds = seconds;
-        pthread_t seekThread = pthread_t();
-//        threadSeekPointer = &seekThread;
-        pthread_create(&seekThread, NULL, __seek, this);
+        threadSeeking = pthread_t();
+        //TODO seek线程处理
+        pthread_create(&threadSeeking, NULL, __seek, this);
     }
 }
 

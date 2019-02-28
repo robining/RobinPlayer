@@ -18,12 +18,12 @@ IStreamDecoder::IStreamDecoder(AVStream *stream, AVCodecContext *avCodecContext,
     pthread_cond_init(&condIsSeeking, NULL);
     pthread_cond_init(&condIsPaused, NULL);
 
-    pthread_mutex_init(&mutexSeeking,NULL);
+    pthread_mutex_init(&mutexSeeking, NULL);
 
     startLoopDecodeThread();
 }
 
-void *__loopDecodePacketQueue(void *data) {
+void *IStreamDecoder::__loopDecodePacketQueue(void *data) {
     IStreamDecoder *obj = static_cast<IStreamDecoder *>(data);
     obj->processPacketQueue();
     pthread_exit(&obj->decodePacketThread);
@@ -46,8 +46,12 @@ void IStreamDecoder::processPacketQueue() {
             pthread_cond_wait(&condPacketQueueHaveData, &mutexDecodePacket);
         }
 
+        if(packetQueue.size() == 0){ //当stop释放锁后可能会出现
+            continue;
+        }
+
         pthread_mutex_lock(&mutexSeeking);
-        if(packetQueue.size() == 0){ //可能在seek的时候又被清空了
+        if (packetQueue.size() == 0) { //可能在seek的时候又被清空了
             pthread_mutex_unlock(&mutexDecodePacket);
             pthread_mutex_unlock(&mutexSeeking);
             continue;
@@ -114,17 +118,17 @@ void IStreamDecoder::processPacketQueue() {
 }
 
 void IStreamDecoder::enqueue(AVPacket *packet) {
-    if (seeking) {
-        return;
-    }
-
-    LOGI(">>>enqueue a packet");
     if (packetQueue.size() > MAX_QUEUE_SIZE) {
         LOGI(">>>packet queue is full,wait packet queue pop...");
         pthread_cond_wait(&condPacketBufferFulled, NULL);
     }
+
+    if (seeking || !isRunning) {
+        return;
+    }
     pthread_mutex_lock(&mutexDecodePacket);
     packetQueue.push(packet);
+    LOGI(">>>enqueue a packet");
     pthread_cond_signal(&condPacketQueueHaveData);
     pthread_mutex_unlock(&mutexDecodePacket);
 }
@@ -163,14 +167,16 @@ void IStreamDecoder::resume() {
 
 void IStreamDecoder::stop() {
     isRunning = false;
-}
-
-void IStreamDecoder::release() {
-    if (isRunning) {
-        stop();
+    if (decodePacketThread != NULL && pthread_kill(decodePacketThread, 0) == 0) { //线程仍然活着
+        LOGI(">>>A111:等待线程结束");
+        pthread_mutex_unlock(&mutexDecodePacket);
+        pthread_mutex_unlock(&mutexSeeking);
+        pthread_cond_signal(&condFrameQueueHaveFrame);
+        pthread_cond_signal(&condPacketBufferFulled);
+        pthread_cond_signal(&condFrameBufferFulled);
+        pthread_join(decodePacketThread,NULL);
+        LOGI(">>>A111:线程结束");
     }
-
-    clearQueue();
 }
 
 IStreamDecoder::~IStreamDecoder() {
@@ -183,11 +189,9 @@ IStreamDecoder::~IStreamDecoder() {
     pthread_cond_destroy(&condIsSeeking);
     pthread_cond_destroy(&condIsPaused);
     pthread_mutex_destroy(&mutexSeeking);
-    pthread_exit(&decodePacketThread);
 }
 
 void IStreamDecoder::clearQueue() {
-    //TODO 是否应该循环释放packet
     std::queue<AVPacket *> empty;
     std::swap(empty, packetQueue);
     std::queue<AVFrame *> emptyFrame;

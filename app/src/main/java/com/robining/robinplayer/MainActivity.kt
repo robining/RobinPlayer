@@ -34,13 +34,14 @@ class MainActivity : AppCompatActivity(), IPlayer.IPlayerCallback, SeekBar.OnSee
     }
 
     fun play(view: View) {
-//        player.init(File(Environment.getExternalStorageDirectory(), "1.mp3"))
-//        player.init(File(Environment.getExternalStorageDirectory(), "VID_20190211_170131.mp4"))
+//        player.prepare(File(Environment.getExternalStorageDirectory(), "1.mp3"))
+//        player.prepare(File(Environment.getExternalStorageDirectory(), "VID_20190211_170131.mp4"))
 
-        player.init(File(Environment.getExternalStorageDirectory(), "你还好吗.mp4"))
-//        player.init(File(Environment.getExternalStorageDirectory(),"DCIM/Camera/VID_20190226_172327.mp4"))
-//        player.init("http://mpge.5nd.com/2015/2015-11-26/69708/1.mp3")
-//        player.init("http://dl.stream.qqmusic.qq.com/M500004SoZzZ0Juiny.mp3?vkey=2165317D45895C1DF5BF0ED3AFADB7C22998730AEFD667E226E2D18E16E3C8790179173FDC6A92868E3CACD176B25C854875FA188395E0FB&guid=5150825362&fromtag=1")
+        player.prepare(File(Environment.getExternalStorageDirectory(), "你还好吗.mp4"))
+//        player.prepare(File(Environment.getExternalStorageDirectory(),"DCIM/Camera/VID_20190226_172327.mp4"))
+//        player.prepare("http://mpge.5nd.com/2015/2015-11-26/69708/1.mp3")
+//        player.prepare("http://he.yinyuetai.com/uploads/videos/common/5DB201692CCE436FB75DBFCAD503F6DE.mp4")
+//        player.prepare("http://dl.stream.qqmusic.qq.com/M500004SoZzZ0Juiny.mp3?vkey=2165317D45895C1DF5BF0ED3AFADB7C22998730AEFD667E226E2D18E16E3C8790179173FDC6A92868E3CACD176B25C854875FA188395E0FB&guid=5150825362&fromtag=1")
         player.play()
     }
 
@@ -138,5 +139,7 @@ class MainActivity : AppCompatActivity(), IPlayer.IPlayerCallback, SeekBar.OnSee
 
     override fun onStartTrackingTouch(seekBar: SeekBar?) {}
 
-    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+    override fun onStopTrackingTouch(seekBar: SeekBar?) {
+//        player.seekTo(seekBar!!.progress)
+    }
 }

@@ -20,6 +20,7 @@ extern "C" {
 
 class IStreamDecoder {
 protected:
+    AVStream* stream;
     std::queue<AVPacket *> packetQueue;
     std::queue<AVFrame *> framesQueue;
     AVCodecContext* codecContext;
@@ -27,8 +28,13 @@ protected:
     bool isPaused = false;
     bool seeking = false;
     SyncHandler *syncHandler = NULL;
+
+    AVFrame* popFrame();
+    virtual void processPacketQueue();
 private:
     const int MAX_QUEUE_SIZE = 50; //注意配置 否则可能会出现内存溢出
+    pthread_t decodePacketThread;
+
     pthread_mutex_t mutexDecodePacket;
     pthread_cond_t condPacketQueueHaveData;
 
@@ -43,16 +49,10 @@ private:
 
     pthread_mutex_t mutexSeeking;
     void startLoopDecodeThread();
+    static void *__loopDecodePacketQueue(void *data);
 public:
-    pthread_t decodePacketThread;
-    AVStream* stream;
-
     IStreamDecoder(AVStream* stream,AVCodecContext* avCodecContext,SyncHandler* syncHandler);
     ~IStreamDecoder();
-
-    AVFrame* popFrame();
-
-    virtual void processPacketQueue();
 
     virtual void enqueue(AVPacket *packet);
 
@@ -61,8 +61,6 @@ public:
     virtual void resume();
 
     virtual void stop();
-
-    virtual void release();
 
     virtual void start();
 

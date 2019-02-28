@@ -18,17 +18,9 @@ using namespace soundtouch;
 
 class AudioStreamDecoder : public IStreamDecoder {
 public:
-    pthread_t playerThread;
-
     AudioStreamDecoder(AVStream *avStream, AVCodecContext *codecContext,SyncHandler* syncHandler);
 
     ~AudioStreamDecoder();
-
-    void initPlayer();
-
-    void playFrame();
-
-    void start();
 
     void pause();
 
@@ -36,11 +28,11 @@ public:
 
     void stop();
 
-    void release();
-
     void setAudioChannel(AUDIO_CHANNEL_TYPE channelType);
 
 private:
+    pthread_t playerThread;
+
     uint8_t *outBuffer = NULL;
 
     SLObjectItf engineObjItf = NULL;
@@ -57,14 +49,21 @@ private:
     SLAndroidSimpleBufferQueueItf androidSimpleBufferQueueItf = NULL;
 
     SoundTouch *soundTouch = NULL;
-    SAMPLETYPE *soundSampleInBuffer = NULL;
-    SAMPLETYPE *soundSampleOutBuffer = NULL;
+    SAMPLETYPE *soundSampleInOutBuffer = NULL;
 
     bool readFinishedSoundSamples = true;
     int currentSoundSamples = 0;
 
+    static void *__initPlayer(void *data);
+    void initPlayer();
+
+    void startPlay();
+
+    void playFrame();
+
     int* readOneFrame();
 
+    static void __bufferQueueCallback(SLAndroidSimpleBufferQueueItf bf, void *pContext);
 
     void sureSLResultSuccess(SLresult result, const char *message);
 };

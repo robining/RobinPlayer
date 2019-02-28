@@ -4,18 +4,11 @@
 
 #include "AudioStreamDecoder.h"
 
-
-void *__initPlayer(void *data) {
-    AudioStreamDecoder *audioStreamDecoder = static_cast<AudioStreamDecoder *>(data);
-    audioStreamDecoder->initPlayer();
-    pthread_exit(&audioStreamDecoder->playerThread);
-}
-
-AudioStreamDecoder::AudioStreamDecoder(AVStream *avStream, AVCodecContext *codecContext,SyncHandler* syncHandler)
-        : IStreamDecoder(avStream, codecContext,syncHandler) {
+AudioStreamDecoder::AudioStreamDecoder(AVStream *avStream, AVCodecContext *codecContext,
+                                       SyncHandler *syncHandler)
+        : IStreamDecoder(avStream, codecContext, syncHandler) {
     outBuffer = static_cast<uint8_t *>(malloc(static_cast<size_t>(44100 * 2 * 2)));
-    soundSampleInBuffer = static_cast<SAMPLETYPE *>(malloc(44100 * 2 * 2 * 2 / 3));
-    soundSampleOutBuffer = static_cast<SAMPLETYPE *>(malloc(44100 * 2 * 2 * 2 / 3));
+    soundSampleInOutBuffer = static_cast<SAMPLETYPE *>(malloc(44100 * 2 * 2 * 2 / 3));
 
     soundTouch = new SoundTouch();
     soundTouch->setSampleRate(44100);
@@ -25,13 +18,19 @@ AudioStreamDecoder::AudioStreamDecoder(AVStream *avStream, AVCodecContext *codec
     pthread_create(&playerThread, NULL, __initPlayer, this);
 }
 
+void *AudioStreamDecoder::__initPlayer(void *data) {
+    AudioStreamDecoder *audioStreamDecoder = static_cast<AudioStreamDecoder *>(data);
+    audioStreamDecoder->initPlayer();
+    pthread_t self = pthread_self();
+    pthread_exit(&self);
+}
 
 int *AudioStreamDecoder::readOneFrame() {
     AVFrame *frame = popFrame();
     double progress = frame->pts * av_q2d(this->stream->time_base);
     JavaBridge::getInstance()->onProgressChanged(progress);
     LOGI(">>>player got a frame");
-    if(syncHandler != NULL){
+    if (syncHandler != NULL) {
         syncHandler->audioClock = progress;
     }
 
@@ -67,7 +66,7 @@ int *AudioStreamDecoder::readOneFrame() {
 }
 
 void AudioStreamDecoder::playFrame() {
-    if(readFinishedSoundSamples){
+    if (readFinishedSoundSamples) {
         int *result = readOneFrame();
         if (result == NULL) {
             return;
@@ -77,31 +76,33 @@ void AudioStreamDecoder::playFrame() {
         int sampleBufferSize = dataSize / 2 + 1;
 
         for (int i = 0; i < sampleBufferSize; i++) {
-            soundSampleInBuffer[i] = outBuffer[i * 2] | (outBuffer[i * 2 + 1] << 8);
+            soundSampleInOutBuffer[i] = outBuffer[i * 2] | (outBuffer[i * 2 + 1] << 8);
         }
 
-        soundTouch->putSamples(soundSampleInBuffer, static_cast<uint>(nb));
+        soundTouch->putSamples(soundSampleInOutBuffer, static_cast<uint>(nb));
         readFinishedSoundSamples = false;
         currentSoundSamples = nb;
     }
 
     uint outSampleCount = 0;
-    outSampleCount = soundTouch->receiveSamples(soundSampleOutBuffer, static_cast<uint>(currentSoundSamples));
+    outSampleCount = soundTouch->receiveSamples(soundSampleInOutBuffer,
+                                                static_cast<uint>(currentSoundSamples));
     if (outSampleCount > 0) {
+        LOGI(">>>soundtouch out :%d  while in %d", outSampleCount, currentSoundSamples);
         JavaBridge::getInstance()->onPlayAudioFrame(outSampleCount * 2 * 2,
-                                                    soundSampleOutBuffer);
+                                                    soundSampleInOutBuffer);
         (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf,
-                                                soundSampleOutBuffer,
+                                                soundSampleInOutBuffer,
                                                 static_cast<SLuint32>(outSampleCount * 2 * 2));
         readFinishedSoundSamples = true;//只读取一次(否则不能播放，不知道为什么)
-    } else{
+    } else {
         readFinishedSoundSamples = true;
         playFrame();
     }
 }
 
 
-static void __bufferQueueCallback(SLAndroidSimpleBufferQueueItf bf, void *pContext) {
+void AudioStreamDecoder::__bufferQueueCallback(SLAndroidSimpleBufferQueueItf bf, void *pContext) {
     AudioStreamDecoder *audioStreamDecoder = static_cast<AudioStreamDecoder *>(pContext);
     audioStreamDecoder->playFrame();
 }
@@ -158,10 +159,11 @@ void AudioStreamDecoder::initPlayer() {
         SLDataSink dataSink = {&outputMix, NULL};
 
         //interface ids
-        SLInterfaceID ids[2] = {SL_IID_BUFFERQUEUE, SL_IID_MUTESOLO};
+        SLInterfaceID ids[3] = {SL_IID_BUFFERQUEUE, SL_IID_MUTESOLO,
+                                SL_IID_PLAYBACKRATE}; //SL_IID_PLAYBACKRATE 解决播放声音有间隔的问题(微调功能)
 
         //reqs
-        SLboolean reqs[2] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
+        SLboolean reqs[3] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
 
         //create
         result = (*engineItf)->CreateAudioPlayer(engineItf, &playerObjItf, &dataSource, &dataSink,
@@ -186,7 +188,7 @@ void AudioStreamDecoder::initPlayer() {
         sureSLResultSuccess(result, "create buffer packetQueue failed:1");
         LOGI(">>>player init success");
 
-        start();
+        startPlay();
     } catch (const char *msg) {
         LOGE(">>>player init failed :%s", msg);
     }
@@ -198,9 +200,7 @@ void AudioStreamDecoder::sureSLResultSuccess(SLresult result, const char *messag
     }
 }
 
-void AudioStreamDecoder::start() {
-    IStreamDecoder::start();
-    LOGI(">>>player ready start play");
+void AudioStreamDecoder::startPlay() {
     (*playItf)->SetPlayState(playItf, SL_PLAYSTATE_PLAYING);
     __bufferQueueCallback(androidSimpleBufferQueueItf, this);
 }
@@ -212,18 +212,13 @@ void AudioStreamDecoder::pause() {
 
 void AudioStreamDecoder::resume() {
     IStreamDecoder::resume();
-    start();
+    startPlay();
 }
 
 void AudioStreamDecoder::stop() {
     IStreamDecoder::stop();
     (*playItf)->SetPlayState(playItf, SL_PLAYSTATE_STOPPED);
 }
-
-void AudioStreamDecoder::release() {
-    IStreamDecoder::release();
-}
-
 
 void AudioStreamDecoder::setAudioChannel(AUDIO_CHANNEL_TYPE channelType) {
     if (muteSoloItf != NULL) {
@@ -269,5 +264,17 @@ AudioStreamDecoder::~AudioStreamDecoder() {
         (*playerObjItf)->Destroy(playerObjItf);
     }
 
+    if(soundTouch != NULL){
+        soundTouch->clear();
+        delete soundTouch;
+    }
+
+    if(soundSampleInOutBuffer != NULL){
+        free(soundSampleInOutBuffer);
+    }
+
+    if(playerThread != NULL){
+        pthread_exit(&playerThread);
+    }
 }
 

@@ -3,17 +3,18 @@
 //
 #include "VideoStreamDecoder.h"
 
-void *__playVideo(void *data) {
-    VideoStreamDecoder *videoStreamDecoder = static_cast<VideoStreamDecoder *>(data);
-    videoStreamDecoder->playFrames();
-    pthread_t currentThread = pthread_self();
-    pthread_exit(&currentThread);
-}
 
 VideoStreamDecoder::VideoStreamDecoder(AVStream *avStream, AVCodecContext *codecContext,
                                        SyncHandler *syncHandler)
         : IStreamDecoder(avStream, codecContext, syncHandler) {
-    pthread_create(&playerThread, NULL, __playVideo, this);
+    pthread_create(&playerThread, NULL, __internalPlayVideo, this);
+}
+
+void *VideoStreamDecoder::__internalPlayVideo(void *data) {
+    VideoStreamDecoder *videoStreamDecoder = static_cast<VideoStreamDecoder *>(data);
+    videoStreamDecoder->playFrames();
+    pthread_t currentThread = pthread_self();
+    pthread_exit(&currentThread);
 }
 
 void VideoStreamDecoder::playFrames() {
@@ -99,4 +100,8 @@ void VideoStreamDecoder::playFrames() {
         av_freep(&buffer);
     }
     sws_freeContext(swsContext);
+}
+
+VideoStreamDecoder::~VideoStreamDecoder() {
+    pthread_exit(&playerThread);
 }

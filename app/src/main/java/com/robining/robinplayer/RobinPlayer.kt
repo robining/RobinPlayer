@@ -24,18 +24,18 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
     private var isInitedEncoder = false
     private var encodeOuputStream: OutputStream? = null
     private val playerRender = RPlayerRender(context)
-    private var glSurfaceView:GLSurfaceView? = null
+    private var glSurfaceView: GLSurfaceView? = null
 
     override fun setCallback(callback: IPlayer.IPlayerCallback) {
         this.playerCallback = callback
     }
 
-    override fun init(file: File) {
-        nativeInit(this, file.absolutePath)
+    override fun prepare(file: File) {
+        nativePrepare(file.absolutePath)
     }
 
-    override fun init(url: String) {
-        nativeInit(this, url)
+    override fun prepare(url: String) {
+        nativePrepare(url)
     }
 
     override fun setSurface(surfaceView: SurfaceView?) {
@@ -110,8 +110,9 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
         this.glSurfaceView = glSurfaceView
     }
 
+    private external fun nativeInit(bridge: INativeBridge)
 
-    private external fun nativeInit(bridge: INativeBridge, url: String)
+    private external fun nativePrepare(url: String)
 
     private external fun nativePlay()
 
@@ -241,12 +242,13 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
     }
 
     override fun onPlayVideoFrame(width: Int, height: Int, y: ByteArray, u: ByteArray, v: ByteArray) {
-        Log.i(TAG,"received a video frame:$width,$height...size:${y.size}")
+        Log.i(TAG, "received a video frame:$width,$height...size:${y.size}")
         playerRender.setYUVRenderData(width, height, y, u, v)
         this.glSurfaceView?.requestRender()
     }
 
     init {
         System.loadLibrary("RobinPlayer")
+        nativeInit(this)
     }
 }

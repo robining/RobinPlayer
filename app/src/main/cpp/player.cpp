@@ -6,7 +6,7 @@
 #include "player/bridge/JavaBridge.h"
 
 //---------------------------------------------------inner impl----------------------------------------------------------
-IPlayer *player = new RobinPlayer();
+IPlayer *player;
 JavaVM *javaVM;
 extern "C" JNIEXPORT jint
 JNICALL
@@ -21,10 +21,18 @@ JNICALL
 Java_com_robining_robinplayer_RobinPlayer_nativeInit(
         JNIEnv *env,
         jobject jobj,
-        jobject bridge,
-        jstring path) {
+        jobject bridge) {
     JavaBridge::getInstance()->init(javaVM, env,
                                     env->NewGlobalRef(bridge), pthread_self());
+    player = new RobinPlayer();
+}
+
+extern "C" JNIEXPORT void
+JNICALL
+Java_com_robining_robinplayer_RobinPlayer_nativePrepare(
+        JNIEnv *env,
+        jobject jobj,
+        jstring path) {
     player->init(env->GetStringUTFChars(path, 0));
 }
 
@@ -66,6 +74,7 @@ Java_com_robining_robinplayer_RobinPlayer_nativeDestroy(
         JNIEnv *env,
         jobject jobj) {
     player->release();
+    delete player;
 }
 
 extern "C" JNIEXPORT void
