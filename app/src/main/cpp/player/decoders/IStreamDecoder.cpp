@@ -192,11 +192,30 @@ IStreamDecoder::~IStreamDecoder() {
 }
 
 void IStreamDecoder::clearQueue() {
+//    std::queue<AVPacket *> empty;
+//    std::swap(empty, packetQueue);
+//    std::queue<AVFrame *> emptyFrame;
+//    std::swap(emptyFrame, framesQueue);
+//    pthread_cond_signal(&condPacketBufferFulled);
+//    pthread_cond_signal(&condFrameBufferFulled);
+
+    while (packetQueue.size() > 0){
+        AVPacket *packet = packetQueue.front();
+        packetQueue.pop();
+        av_packet_free(&packet);
+        packet = NULL;
+    }
     std::queue<AVPacket *> empty;
     std::swap(empty, packetQueue);
-    std::queue<AVFrame *> emptyFrame;
-    std::swap(emptyFrame, framesQueue);
     pthread_cond_signal(&condPacketBufferFulled);
+
+    while (framesQueue.size() > 0){
+        AVFrame* frame = framesQueue.front();
+        framesQueue.pop();
+        av_frame_free(&frame);
+        std::queue<AVFrame *> emptyFrame;
+        std::swap(emptyFrame, framesQueue);
+    }
     pthread_cond_signal(&condFrameBufferFulled);
 }
 
