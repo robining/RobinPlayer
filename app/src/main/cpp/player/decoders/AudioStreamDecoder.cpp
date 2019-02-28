@@ -67,49 +67,37 @@ int *AudioStreamDecoder::readOneFrame() {
 }
 
 void AudioStreamDecoder::playFrame() {
-    int *result = readOneFrame();
-    if (result == NULL) {
-        return;
-    }
-    int nb = result[1];
-    int dataSize = result[0];
-    int sampleBufferSize = dataSize / 2 + 1;
-
-    for (int i = 0; i < sampleBufferSize; i++) {
-        soundSampleInBuffer[i] = outBuffer[i * 2] | (outBuffer[i * 2 + 1] << 8);
-    }
-
-    soundTouch->putSamples(soundSampleInBuffer, static_cast<uint>(nb));
-    uint outSampleCount = 0;
-    uint totalSampleCount = 0;
-    do {
-        outSampleCount = soundTouch->receiveSamples(soundSampleOutBuffer, static_cast<uint>(nb));
-        totalSampleCount += outSampleCount;
-        if (outSampleCount > 0) {
-            JavaBridge::getInstance()->onPlayAudioFrame(outSampleCount * 2 * 2,
-                                                        soundSampleOutBuffer);
-            (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf,
-                                                    soundSampleOutBuffer,
-                                                    static_cast<SLuint32>(outSampleCount * 2 * 2));
-            break; //只读取一次就行了，多读取入队有问题，不知道为什么
+    if(readFinishedSoundSamples){
+        int *result = readOneFrame();
+        if (result == NULL) {
+            return;
         }
-    } while (outSampleCount > 0);
-    if (totalSampleCount == 0) { //如果没有读出值则重新获取一帧
+        int nb = result[1];
+        int dataSize = result[0];
+        int sampleBufferSize = dataSize / 2 + 1;
+
+        for (int i = 0; i < sampleBufferSize; i++) {
+            soundSampleInBuffer[i] = outBuffer[i * 2] | (outBuffer[i * 2 + 1] << 8);
+        }
+
+        soundTouch->putSamples(soundSampleInBuffer, static_cast<uint>(nb));
+        readFinishedSoundSamples = false;
+        currentSoundSamples = nb;
+    }
+
+    uint outSampleCount = 0;
+    outSampleCount = soundTouch->receiveSamples(soundSampleOutBuffer, static_cast<uint>(currentSoundSamples));
+    if (outSampleCount > 0) {
+        JavaBridge::getInstance()->onPlayAudioFrame(outSampleCount * 2 * 2,
+                                                    soundSampleOutBuffer);
+        (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf,
+                                                soundSampleOutBuffer,
+                                                static_cast<SLuint32>(outSampleCount * 2 * 2));
+        readFinishedSoundSamples = true;//只读取一次(否则不能播放，不知道为什么)
+    } else{
+        readFinishedSoundSamples = true;
         playFrame();
     }
-//    soundTouch->flush();
-//    do{
-//        outSampleCount = soundTouch->receiveSamples(soundSampleOutBuffer, static_cast<uint>(dataSize / 4));
-//        LOGI(">>>TTT:received1 %d",outSampleCount);
-//        if(outSampleCount > 0){
-//            LOGI(">>>TTT:enqueued1 %d",outSampleCount);
-////            (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf, soundSampleBuffer,
-////                                                    static_cast<SLuint32>(size));
-//
-//        }
-//    }while (outSampleCount > 0);
-//
-//    LOGI(">>>TTT:enqueued end");
 }
 
 

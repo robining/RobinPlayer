@@ -60,6 +60,9 @@ private:
     SAMPLETYPE *soundSampleInBuffer = NULL;
     SAMPLETYPE *soundSampleOutBuffer = NULL;
 
+    bool readFinishedSoundSamples = true;
+    int currentSoundSamples = 0;
+
     int* readOneFrame();
 
 
