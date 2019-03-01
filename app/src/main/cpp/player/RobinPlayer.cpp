@@ -219,6 +219,7 @@ void RobinPlayer::initInternal(const char *url) {
             } else if (codecParameters->codec_type == AVMEDIA_TYPE_AUDIO) {
                 //to decode audio
                 streamDecoders[i] = new AudioStreamDecoder(stream, codecContext, syncHandler);
+                LOGE(">>>GG:audio origin sample rate:%d", codecContext->sample_rate);
             } else {
                 onWarn(CODE_WARN_NOT_FOUND_STREAM_DECODER, "cannot found unknown stream decoder");
                 //not support this codec_type at this time
@@ -291,7 +292,7 @@ void RobinPlayer::seekTo(int seconds) {
         return;
     }
     if (avFormatContext != NULL && &streamDecoders != NULL) {
-        if(seeking){
+        if (seeking) {
             return;
         }
         seekTargetSeconds = seconds;

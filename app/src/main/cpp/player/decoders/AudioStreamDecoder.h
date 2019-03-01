@@ -57,6 +57,8 @@ private:
     static void *__initPlayer(void *data);
     void initPlayer();
 
+    SLuint32 getCurrentSampleRateForOpensles(int sample_rate);
+
     void startPlay();
 
     void playFrame();

@@ -7,11 +7,12 @@
 AudioStreamDecoder::AudioStreamDecoder(AVStream *avStream, AVCodecContext *codecContext,
                                        SyncHandler *syncHandler)
         : IStreamDecoder(avStream, codecContext, syncHandler) {
-    outBuffer = static_cast<uint8_t *>(malloc(static_cast<size_t>(44100 * 2 * 2)));
-    soundSampleInOutBuffer = static_cast<SAMPLETYPE *>(malloc(44100 * 2 * 2 * 2 / 3));
+    outBuffer = static_cast<uint8_t *>(malloc(static_cast<size_t>(codecContext->sample_rate * 2 * 2)));
+    soundSampleInOutBuffer = static_cast<SAMPLETYPE *>(malloc(
+            static_cast<size_t>(codecContext->sample_rate * 2 * 2 * 3)));
 
     soundTouch = new SoundTouch();
-    soundTouch->setSampleRate(44100);
+    soundTouch->setSampleRate(static_cast<uint>(codecContext->sample_rate));
     soundTouch->setChannels(2);
 //    soundTouch->setPitch(1.5f);
 //    soundTouch->setTempo(1.5f);
@@ -35,9 +36,8 @@ int *AudioStreamDecoder::readOneFrame() {
     }
 
     SwrContext *swrContext = NULL;
-    //此处设置的44100和2 关系到outBuffer大小初始化
     swrContext = swr_alloc_set_opts(swrContext, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_S16,
-                                    44100, 2,
+                                    codecContext->sample_rate, frame->channel_layout,
                                     static_cast<AVSampleFormat>(frame->format), frame->sample_rate,
                                     NULL, NULL);
     if (!swrContext || swr_init(swrContext) < 0) {
@@ -66,39 +66,50 @@ int *AudioStreamDecoder::readOneFrame() {
 }
 
 void AudioStreamDecoder::playFrame() {
-    if (readFinishedSoundSamples) {
-        int *result = readOneFrame();
-        if (result == NULL) {
-            return;
-        }
-        int nb = result[1];
-        int dataSize = result[0];
-        int sampleBufferSize = dataSize / 2 + 1;
-
-        for (int i = 0; i < sampleBufferSize; i++) {
-            soundSampleInOutBuffer[i] = outBuffer[i * 2] | (outBuffer[i * 2 + 1] << 8);
-        }
-
-        soundTouch->putSamples(soundSampleInOutBuffer, static_cast<uint>(nb));
-        readFinishedSoundSamples = false;
-        currentSoundSamples = nb;
+    int *result = readOneFrame();
+    if (result == NULL) {
+        return;
     }
+    int dataSize = result[0];
+    JavaBridge::getInstance()->onPlayAudioFrame(dataSize,
+                                                outBuffer);
+    (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf,
+                                            outBuffer,
+                                            static_cast<SLuint32>(dataSize));
 
-    uint outSampleCount = 0;
-    outSampleCount = soundTouch->receiveSamples(soundSampleInOutBuffer,
-                                                static_cast<uint>(currentSoundSamples));
-    if (outSampleCount > 0) {
-        LOGI(">>>soundtouch out :%d  while in %d", outSampleCount, currentSoundSamples);
-        JavaBridge::getInstance()->onPlayAudioFrame(outSampleCount * 2 * 2,
-                                                    soundSampleInOutBuffer);
-        (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf,
-                                                soundSampleInOutBuffer,
-                                                static_cast<SLuint32>(outSampleCount * 2 * 2));
-        readFinishedSoundSamples = true;//只读取一次(否则不能播放，不知道为什么)
-    } else {
-        readFinishedSoundSamples = true;
-        playFrame();
-    }
+//    if (readFinishedSoundSamples) {
+//        int *result = readOneFrame();
+//        if (result == NULL) {
+//            return;
+//        }
+//        int nb = result[1];
+//        int dataSize = result[0];
+//        int sampleBufferSize = dataSize / 2 + 1;
+//
+//        for (int i = 0; i < sampleBufferSize; i++) {
+//            soundSampleInOutBuffer[i] = outBuffer[i * 2] | (outBuffer[i * 2 + 1] << 8);
+//        }
+//
+//        soundTouch->putSamples(soundSampleInOutBuffer, static_cast<uint>(nb * 2));
+//        readFinishedSoundSamples = false;
+//        currentSoundSamples = nb * 2;
+//    }
+//
+//    uint outSampleCount = 0;
+//    outSampleCount = soundTouch->receiveSamples(soundSampleInOutBuffer,
+//                                                static_cast<uint>(5000));
+//    if (outSampleCount > 0) {
+//        LOGI(">>>soundtouch out :%d  while in %d", outSampleCount, currentSoundSamples);
+//        JavaBridge::getInstance()->onPlayAudioFrame(outSampleCount * 2 * 2,
+//                                                    soundSampleInOutBuffer);
+//        (*androidSimpleBufferQueueItf)->Enqueue(androidSimpleBufferQueueItf,
+//                                                soundSampleInOutBuffer,
+//                                                static_cast<SLuint32>(outSampleCount * 2 * 2));
+//        readFinishedSoundSamples = true;//只读取一次(否则不能播放，不知道为什么)
+//    } else {
+//        readFinishedSoundSamples = true;
+//        playFrame();
+//    }
 }
 
 
@@ -143,7 +154,7 @@ void AudioStreamDecoder::initPlayer() {
         SLDataFormat_PCM pcm = {
                 SL_DATAFORMAT_PCM,
                 2,
-                SL_SAMPLINGRATE_44_1,
+                getCurrentSampleRateForOpensles(codecContext->sample_rate),
                 SL_PCMSAMPLEFORMAT_FIXED_16,
                 SL_PCMSAMPLEFORMAT_FIXED_16,
                 SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT,
@@ -192,6 +203,55 @@ void AudioStreamDecoder::initPlayer() {
     } catch (const char *msg) {
         LOGE(">>>player init failed :%s", msg);
     }
+}
+
+SLuint32 AudioStreamDecoder::getCurrentSampleRateForOpensles(int sample_rate) {
+    SLuint32 rate = 0;
+    switch (sample_rate)
+    {
+        case 8000:
+            rate = SL_SAMPLINGRATE_8;
+            break;
+        case 11025:
+            rate = SL_SAMPLINGRATE_11_025;
+            break;
+        case 12000:
+            rate = SL_SAMPLINGRATE_12;
+            break;
+        case 16000:
+            rate = SL_SAMPLINGRATE_16;
+            break;
+        case 22050:
+            rate = SL_SAMPLINGRATE_22_05;
+            break;
+        case 24000:
+            rate = SL_SAMPLINGRATE_24;
+            break;
+        case 32000:
+            rate = SL_SAMPLINGRATE_32;
+            break;
+        case 44100:
+            rate = SL_SAMPLINGRATE_44_1;
+            break;
+        case 48000:
+            rate = SL_SAMPLINGRATE_48;
+            break;
+        case 64000:
+            rate = SL_SAMPLINGRATE_64;
+            break;
+        case 88200:
+            rate = SL_SAMPLINGRATE_88_2;
+            break;
+        case 96000:
+            rate = SL_SAMPLINGRATE_96;
+            break;
+        case 192000:
+            rate = SL_SAMPLINGRATE_192;
+            break;
+        default:
+            rate =  SL_SAMPLINGRATE_44_1;
+    }
+    return rate;
 }
 
 void AudioStreamDecoder::sureSLResultSuccess(SLresult result, const char *message) {
