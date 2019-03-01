@@ -159,13 +159,24 @@ void JavaBridge::onPlayVideoFrame(int width, int height, void *y, void *u, void 
     }
 }
 
-bool JavaBridge::isSupportDecodeByMediaCodec(const char *format) {
+bool JavaBridge::initDecodeByMediaCodec(const char *format, int width, int height, int csd0Size,
+                                        int csd1Size, void *csd0, void *csd1) {
     bool result = false;
     if (isInited()) {
         JNIEnv *jniEnv = getJniEnv();
         jclass cls = jniEnv->GetObjectClass(this->javaBridgeObject);
-        jmethodID method = jniEnv->GetMethodID(cls, "isSupportDecodeByMediaCodec", "(Ljava/lang/String;)Z");
-        result = jniEnv->CallBooleanMethod(javaBridgeObject, method, jniEnv->NewStringUTF(format));
+        jmethodID method = jniEnv->GetMethodID(cls, "initDecodeByMediaCodec",
+                                               "(Ljava/lang/String;II[B[B)Z");
+        jbyteArray jcsd0 = jniEnv->NewByteArray(csd0Size);
+        jniEnv->SetByteArrayRegion(jcsd0, 0, csd0Size, static_cast<const jbyte *>(csd0));
+
+        jbyteArray jcsd1 = jniEnv->NewByteArray(csd1Size);
+        jniEnv->SetByteArrayRegion(jcsd1, 0, csd1Size, static_cast<const jbyte *>(csd1));
+        result = jniEnv->CallBooleanMethod(javaBridgeObject, method, jniEnv->NewStringUTF(format),
+                                           width, height, jcsd0, jcsd1);
+
+        jniEnv->DeleteLocalRef(jcsd0);
+        jniEnv->DeleteLocalRef(jcsd1);
         if (jniEnv != mainJniEnv) { //不是在主线程
             this->javaVM->DetachCurrentThread();
         }
@@ -184,6 +195,32 @@ void JavaBridge::decodeVideoByMediaCodec(int length, void *buffer) {
         jniEnv->CallVoidMethod(javaBridgeObject, method, length, bytes);
 
         jniEnv->DeleteLocalRef(bytes);
+
+        if (jniEnv != mainJniEnv) { //不是在主线程
+            this->javaVM->DetachCurrentThread();
+        }
+    }
+}
+
+void JavaBridge::useMediaCodecDecodeVideoMode() {
+    if (isInited()) {
+        JNIEnv *jniEnv = getJniEnv();
+        jclass cls = jniEnv->GetObjectClass(this->javaBridgeObject);
+        jmethodID method = jniEnv->GetMethodID(cls, "useMediaCodecDecodeVideoMode", "()V");
+        jniEnv->CallVoidMethod(javaBridgeObject, method);
+
+        if (jniEnv != mainJniEnv) { //不是在主线程
+            this->javaVM->DetachCurrentThread();
+        }
+    }
+}
+
+void JavaBridge::useYUVDecodeVideoMode() {
+    if (isInited()) {
+        JNIEnv *jniEnv = getJniEnv();
+        jclass cls = jniEnv->GetObjectClass(this->javaBridgeObject);
+        jmethodID method = jniEnv->GetMethodID(cls, "useYUVDecodeVideoMode", "()V");
+        jniEnv->CallVoidMethod(javaBridgeObject, method);
 
         if (jniEnv != mainJniEnv) { //不是在主线程
             this->javaVM->DetachCurrentThread();

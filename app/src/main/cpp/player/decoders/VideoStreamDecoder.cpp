@@ -7,8 +7,8 @@
 VideoStreamDecoder::VideoStreamDecoder(AVStream *avStream, AVCodecContext *codecContext,
                                        SyncHandler *syncHandler)
         : IStreamDecoder(avStream, codecContext, syncHandler) {
-    supportDecodeByMediaCodec = JavaBridge::getInstance()->isSupportDecodeByMediaCodec(
-            codecContext->codec_descriptor->name);
+    supportDecodeByMediaCodec = JavaBridge::getInstance()->initDecodeByMediaCodec(
+            codecContext->codec_descriptor->name, codecContext->width, codecContext->height,codecContext->extradata_size,codecContext->extradata_size,codecContext->extradata,codecContext->extradata);
     if (supportDecodeByMediaCodec) {
         avbsfContext = initNativeSupportMediaCodec();
         if (avbsfContext == NULL) {
@@ -17,7 +17,10 @@ VideoStreamDecoder::VideoStreamDecoder(AVStream *avStream, AVCodecContext *codec
     }
     LOGE(">>>GGG:是否支持硬解码:%d", supportDecodeByMediaCodec);
     if (!supportDecodeByMediaCodec) {
+        JavaBridge::getInstance()->useYUVDecodeVideoMode();
         pthread_create(&playerThread, NULL, __internalPlayVideo, this);
+    } else {
+        JavaBridge::getInstance()->useMediaCodecDecodeVideoMode();
     }
 }
 
@@ -32,9 +35,13 @@ void VideoStreamDecoder::processPacket(AVPacket *packet) {
         }
 
         while (av_bsf_receive_packet(avbsfContext, packet) == 0) {
+            if (syncHandler != NULL && syncHandler->audioClock != -1) {
+                double diff = getFrameDiffTime(NULL,packet);
+                double sleepTime = getDelayTime(diff);
+                av_usleep(static_cast<unsigned int>(sleepTime * 1000000));
+            }
             JavaBridge::getInstance()->decodeVideoByMediaCodec(packet->size, packet->data);
         }
-
         av_packet_free(&packet);
     }
 }
@@ -66,23 +73,9 @@ void VideoStreamDecoder::playFrames() {
         //sync with audio clock
         //TODO 此同步应该放到scale转换之后去，因为转换过程也需要耗时
         if (syncHandler != NULL && syncHandler->audioClock != -1) {
-            int64_t pts = av_frame_get_best_effort_timestamp(frame);
-            if (pts == AV_NOPTS_VALUE) {
-                pts = 0;
-            }
-            double clock = pts * av_q2d(stream->time_base);
-            double diffWithAudioClock = clock - syncHandler->audioClock;
-            if (diffWithAudioClock < 0) {
-                diffWithAudioClock = 0;
-            }
-
-            LOGE(">>>video play:%f   audio play:%f,  need sleep:%f", clock, syncHandler->audioClock,
-                 diffWithAudioClock);
-            if (diffWithAudioClock > 1) { //如果大于一定时间 直接放弃该帧...（seek后可能会相差很多）
-                av_frame_free(&frame);
-                continue;
-            }
-            av_usleep(static_cast<unsigned int>(diffWithAudioClock * 1000000));
+            double diff = getFrameDiffTime(frame,NULL);
+            double sleepTime = getDelayTime(diff);
+            av_usleep(static_cast<unsigned int>(sleepTime * 1000000));
         }
 
         AVFrame *yuv420pFrame = NULL;
@@ -132,6 +125,73 @@ void VideoStreamDecoder::playFrames() {
     sws_freeContext(swsContext);
 }
 
+double VideoStreamDecoder::getFrameDiffTime(AVFrame *avFrame, AVPacket *avPacket) {
+
+    double pts = 0;
+    if(avFrame != NULL)
+    {
+        pts = av_frame_get_best_effort_timestamp(avFrame);
+    }
+    if(avPacket != NULL)
+    {
+        pts = avPacket->pts;
+    }
+    if(pts == AV_NOPTS_VALUE)
+    {
+        pts = 0;
+    }
+    pts *= av_q2d(stream->time_base);
+
+    double diff = syncHandler->audioClock - pts;
+    return diff;
+}
+
+double VideoStreamDecoder::getDelayTime(double diff) {
+    double delayTime = 0;
+    if(diff > 0.003)
+    {
+        delayTime = delayTime * 2 / 3;
+        if(delayTime < defaultDelayTime / 2)
+        {
+            delayTime = defaultDelayTime * 2 / 3;
+        }
+        else if(delayTime > defaultDelayTime * 2)
+        {
+            delayTime = defaultDelayTime * 2;
+        }
+    }
+    else if(diff < - 0.003)
+    {
+        delayTime = delayTime * 3 / 2;
+        if(delayTime < defaultDelayTime / 2)
+        {
+            delayTime = defaultDelayTime * 2 / 3;
+        }
+        else if(delayTime > defaultDelayTime * 2)
+        {
+            delayTime = defaultDelayTime * 2;
+        }
+    }
+    else if(diff == 0.003)
+    {
+
+    }
+    if(diff >= 0.5)
+    {
+        delayTime = 0;
+    }
+    else if(diff <= -0.5)
+    {
+        delayTime = defaultDelayTime * 2;
+    }
+
+    if(fabs(diff) >= 10)
+    {
+        delayTime = defaultDelayTime;
+    }
+    return delayTime;
+}
+
 VideoStreamDecoder::~VideoStreamDecoder() {
     pthread_exit(&playerThread);
 }
@@ -139,9 +199,12 @@ VideoStreamDecoder::~VideoStreamDecoder() {
 AVBSFContext *VideoStreamDecoder::initNativeSupportMediaCodec() {
     LOGE(">>>GGG:尝试初始化本地硬解码");
     const AVBitStreamFilter *streamFilter = NULL;
-    if (strcasecmp(codecContext->codec_descriptor->name, "h264")) {
+    if (strcasecmp(codecContext->codec_descriptor->name, "h264") == 0) {
+        LOGE(">>>GGG:h264_mp4toannexb");
         streamFilter = av_bsf_get_by_name("h264_mp4toannexb");
-    } else if (strcasecmp(codecContext->codec_descriptor->name, "h265")) {
+    } else if (strcasecmp(codecContext->codec_descriptor->name, "h265") == 0) {
+
+        LOGE(">>>GGG:hevc_mp4toannexb");
         streamFilter = av_bsf_get_by_name("hevc_mp4toannexb");
     }
 
@@ -150,7 +213,7 @@ AVBSFContext *VideoStreamDecoder::initNativeSupportMediaCodec() {
         return NULL;
     }
     AVBSFContext *context = NULL;
-    if (av_bsf_alloc(streamFilter, &context) < 0) {
+    if (av_bsf_alloc(streamFilter, &context) != 0) {
         LOGE(">>>GGG:av_bsf_alloc failed");
         //初始化失败
         return NULL;
@@ -161,13 +224,14 @@ AVBSFContext *VideoStreamDecoder::initNativeSupportMediaCodec() {
         LOGE(">>>GGG:avcodec_parameters_copy failed");
         return NULL;
     }
-
-    av_bsf_init(context);
-//    if (av_bsf_init(context) != 0) {
-//        LOGE(">>>GGG:av_bsf_init failed");
-//        av_bsf_free(&context);
-//        return NULL;
-//    }
+//
+//    av_bsf_init(context);
+    int result = av_bsf_init(context);
+    if (result != 0) {
+        LOGE(">>>GGG:av_bsf_init failed:%s",av_err2str(result));
+        av_bsf_free(&context);
+        return NULL;
+    }
 
     context->time_base_in = stream->time_base;
     return context;

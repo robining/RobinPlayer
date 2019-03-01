@@ -16,6 +16,7 @@ public:
     VideoStreamDecoder(AVStream* avStream,AVCodecContext* codecContext,SyncHandler* syncHandler);
     ~VideoStreamDecoder();
 private:
+    double defaultDelayTime = 0.04;
     pthread_t playerThread;
     bool supportDecodeByMediaCodec = false;
     static void *__internalPlayVideo(void *data);
@@ -23,6 +24,8 @@ private:
     void processPacket(AVPacket* packet);
     AVBSFContext* initNativeSupportMediaCodec();
     AVBSFContext* avbsfContext = NULL;
+    double getFrameDiffTime(AVFrame *avFrame, AVPacket *avPacket);
+    double getDelayTime(double diff);
 };
 
 

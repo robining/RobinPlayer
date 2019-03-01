@@ -216,8 +216,6 @@ void RobinPlayer::initInternal(const char *url) {
             if (codecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
                 //to decode video
                 streamDecoders[i] = new VideoStreamDecoder(stream, codecContext, syncHandler);
-                bool supportByMediaCodec = JavaBridge::getInstance()->isSupportDecodeByMediaCodec(
-                        codecContext->codec_descriptor->name);
             } else if (codecParameters->codec_type == AVMEDIA_TYPE_AUDIO) {
                 //to decode audio
                 streamDecoders[i] = new AudioStreamDecoder(stream, codecContext, syncHandler);

@@ -1,31 +1,44 @@
 package com.robining.robinplayer
 
 import android.content.Context
+import android.graphics.SurfaceTexture
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
-import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.opengl.GLSurfaceView
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.Surface
 import android.view.SurfaceView
 import android.widget.Toast
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
+import java.nio.ByteBuffer
 
-class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
+class RobinPlayer(val context: Context) : IPlayer, INativeBridge, RPlayerRender.OnSurfaceCreatedListener {
+    override fun onSurfaceCreated(surface: Surface, surfaceTexture: SurfaceTexture) {
+        this.decodeVideoSurface = surface
+        surfaceTexture.setOnFrameAvailableListener {
+            Log.i(TAG,"mediacodec find a frame,need request render")
+            glSurfaceView?.requestRender()
+        }
+    }
+
     private val TAG = "RobinPlayer"
     private var playerCallback: IPlayer.IPlayerCallback? = null
     private val mainThreadHandler = Handler(Looper.getMainLooper())
-    private var mediaEncoder: MediaCodec? = null
+    private var mediaRecordAACEncoder: MediaCodec? = null
+    private var mediaVideoDecoder: MediaCodec? = null
     private var recordAACsampleRate: Int = 44100
     private val recorderLock = "recorderLock"
-    private var isInitedEncoder = false
+    private var isInitedAACEncoder = false
+    private var isInitedVideoDecoder = false
     private var encodeOuputStream: OutputStream? = null
     private val playerRender = RPlayerRender(context)
     private var glSurfaceView: GLSurfaceView? = null
+    private var decodeVideoSurface: Surface? = null
 
     override fun setCallback(callback: IPlayer.IPlayerCallback) {
         this.playerCallback = callback
@@ -57,7 +70,7 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
 
     override fun stop() {
         nativeStop()
-        if (mediaEncoder != null) {
+        if (mediaRecordAACEncoder != null) {
             stopRecord()
         }
     }
@@ -82,22 +95,22 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
             mediaFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
             mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 96000)
             mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 5000)//如果一帧大小超出该数字会报错
-            mediaEncoder = MediaCodec.createEncoderByType(mimeType)
-            mediaEncoder!!.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            mediaEncoder!!.start()
+            mediaRecordAACEncoder = MediaCodec.createEncoderByType(mimeType)
+            mediaRecordAACEncoder!!.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            mediaRecordAACEncoder!!.start()
 
             encodeOuputStream = FileOutputStream(file) as OutputStream?
-            isInitedEncoder = true
+            isInitedAACEncoder = true
             Log.e(TAG, "init aac encoder end")
         }
     }
 
     override fun stopRecord() {
         synchronized(recorderLock) {
-            isInitedEncoder = false
+            isInitedAACEncoder = false
             Log.e(TAG, "destroy aac encoder start")
-            mediaEncoder?.release()
-            mediaEncoder = null
+            mediaRecordAACEncoder?.release()
+            mediaRecordAACEncoder = null
             encodeOuputStream?.close()
             Log.e(TAG, "destroy aac encoder start")
         }
@@ -174,35 +187,35 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
 
     override fun onPlayAudioFrame(length: Int, bytes: ByteArray) {
         synchronized(recorderLock) {
-            if (mediaEncoder == null || !isInitedEncoder) {
+            if (mediaRecordAACEncoder == null || !isInitedAACEncoder) {
                 return
             }
             Log.e(TAG, "encoder frame start:$length")
-            val inputBufferIndex: Int = mediaEncoder?.dequeueInputBuffer(0) ?: return
+            val inputBufferIndex: Int = mediaRecordAACEncoder?.dequeueInputBuffer(0) ?: return
 
             if (inputBufferIndex >= 0) {
-                val inputBuffer = mediaEncoder?.inputBuffers!![inputBufferIndex]
+                val inputBuffer = mediaRecordAACEncoder?.inputBuffers!![inputBufferIndex]
                 inputBuffer.clear()
                 inputBuffer.put(bytes)
-                mediaEncoder?.queueInputBuffer(inputBufferIndex, 0, length, 0, 0)
+                mediaRecordAACEncoder?.queueInputBuffer(inputBufferIndex, 0, length, 0, 0)
             }
 
             val mediaCodecBufferInfo = MediaCodec.BufferInfo()
-            var outBufferIndex = mediaEncoder?.dequeueOutputBuffer(mediaCodecBufferInfo, 0)
+            var outBufferIndex = mediaRecordAACEncoder?.dequeueOutputBuffer(mediaCodecBufferInfo, 0)
             while (outBufferIndex != null && outBufferIndex >= 0) {
-                val outBuffer = mediaEncoder?.outputBuffers!![outBufferIndex]
+                val outBuffer = mediaRecordAACEncoder?.outputBuffers!![outBufferIndex]
                 outBuffer.position(mediaCodecBufferInfo.offset)
                 outBuffer.limit(mediaCodecBufferInfo.size)
                 val sizePerFrame = 7 + mediaCodecBufferInfo.size
                 val outByteBuffer = ByteArray(sizePerFrame) //因为adts占用7个字节
-                addADtsHeader(outByteBuffer, sizePerFrame, mediaEncoder?.outputFormat?.getInteger(MediaFormat.KEY_SAMPLE_RATE)!!)
+                addADtsHeader(outByteBuffer, sizePerFrame, mediaRecordAACEncoder?.outputFormat?.getInteger(MediaFormat.KEY_SAMPLE_RATE)!!)
                 outBuffer.get(outByteBuffer, 7, mediaCodecBufferInfo.size)
                 Log.e(TAG, "encoded a frame to stream")
                 encodeOuputStream?.write(outByteBuffer, 0, sizePerFrame)
                 //还原位置
                 outBuffer.position(mediaCodecBufferInfo.offset)
-                mediaEncoder?.releaseOutputBuffer(outBufferIndex, false)
-                outBufferIndex = mediaEncoder?.dequeueOutputBuffer(mediaCodecBufferInfo, 0)
+                mediaRecordAACEncoder?.releaseOutputBuffer(outBufferIndex, false)
+                outBufferIndex = mediaRecordAACEncoder?.dequeueOutputBuffer(mediaCodecBufferInfo, 0)
             }
             Log.e(TAG, "encoder frame stopped")
         }
@@ -248,34 +261,68 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
         this.glSurfaceView?.requestRender()
     }
 
-    override fun isSupportDecodeByMediaCodec(format: String) : Boolean {
-        if("h264" == format){
-            val codecCount = MediaCodecList.getCodecCount()
-            for(i in 0 until codecCount){
-                val codecInfo = MediaCodecList.getCodecInfoAt(i)
-                if(!codecInfo.isEncoder){
-                    continue
-                }
-                for (type in codecInfo.supportedTypes){
-                    if(type == "video/avc"){
-                        return true
-                    }
-                }
-            }
-        }
-        return false
-    }
-
     override fun decodeVideoByMediaCodec(length: Int, bytes: ByteArray) {
+        if (mediaVideoDecoder == null || !isInitedVideoDecoder) {
+            return
+        }
+        Log.i(TAG, "mediacodec will decode a packet:$length ... ${bytes.size}")
+        val inputBufferIndex: Int = mediaVideoDecoder!!.dequeueInputBuffer(10) ?: return
+        if (inputBufferIndex >= 0) {
+            val inputBuffer = mediaVideoDecoder!!.inputBuffers[inputBufferIndex]
+            inputBuffer.clear()
+            inputBuffer.put(bytes)
+            mediaVideoDecoder!!.queueInputBuffer(inputBufferIndex, 0, length, 0, 0)
+        }
+
+        val mediaCodecBufferInfo = MediaCodec.BufferInfo()
+        var outBufferIndex = mediaVideoDecoder?.dequeueOutputBuffer(mediaCodecBufferInfo, 10)
+        while (outBufferIndex != null && outBufferIndex >= 0) {
+            mediaVideoDecoder?.releaseOutputBuffer(outBufferIndex, true)//使用true
+            outBufferIndex = mediaVideoDecoder!!.dequeueOutputBuffer(mediaCodecBufferInfo, 10)
+        }
 
     }
 
-    fun initDecodeH264(){
+    override fun initDecodeByMediaCodec(codecName: String, width: Int, height: Int, csd0: ByteArray, csd1: ByteArray): Boolean {
+        if (decodeVideoSurface == null) {
+            return false
+        }
+        Log.i(TAG, "mediacodec init $codecName , $width ,$height")
+        val support = MimeMappingUtil.isSupportByMediaCodec(codecName)
+        if (!support) {
+            return false
+        }
+        val mime = MimeMappingUtil.getMimeTypeByCodecName(codecName)
 
+        return try {
+            val format = MediaFormat.createVideoFormat(mime, width, height)
+            format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, width * height)
+            format.setByteBuffer("csd-0", ByteBuffer.wrap(csd0))
+            format.setByteBuffer("csd-1", ByteBuffer.wrap(csd1))
+            mediaVideoDecoder = MediaCodec.createDecoderByType(mime!!)
+            mediaVideoDecoder!!.configure(format, decodeVideoSurface, null, 0)
+            mediaVideoDecoder!!.start()
+            isInitedVideoDecoder = true
+            true
+        } catch (ex: Exception) {
+            ex.printStackTrace()
+            false
+        }
+    }
+
+
+    override fun useMediaCodecDecodeVideoMode() {
+        playerRender.useMediaCodecMode()
+    }
+
+    override fun useYUVDecodeVideoMode() {
+        playerRender.useYUVMode()
     }
 
     init {
         System.loadLibrary("RobinPlayer")
+        playerRender.onSurfaceCreatedLisenter = this
         nativeInit(this)
+
     }
 }
