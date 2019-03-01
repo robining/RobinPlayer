@@ -292,6 +292,14 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge, RPlayerRender.
         if (!support) {
             return false
         }
+
+        if(isInitedVideoDecoder){
+            isInitedVideoDecoder = false
+            mediaVideoDecoder?.stop()
+            mediaVideoDecoder?.release()
+            mediaVideoDecoder = null
+        }
+
         val mime = MimeMappingUtil.getMimeTypeByCodecName(codecName)
 
         return try {
