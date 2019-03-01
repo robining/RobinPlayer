@@ -3,6 +3,7 @@ package com.robining.robinplayer
 import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
+import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.opengl.GLSurfaceView
 import android.os.Handler
@@ -245,6 +246,32 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge {
         Log.i(TAG, "received a video frame:$width,$height...size:${y.size}")
         playerRender.setYUVRenderData(width, height, y, u, v)
         this.glSurfaceView?.requestRender()
+    }
+
+    override fun isSupportDecodeByMediaCodec(format: String) : Boolean {
+        if("h264" == format){
+            val codecCount = MediaCodecList.getCodecCount()
+            for(i in 0 until codecCount){
+                val codecInfo = MediaCodecList.getCodecInfoAt(i)
+                if(!codecInfo.isEncoder){
+                    continue
+                }
+                for (type in codecInfo.supportedTypes){
+                    if(type == "video/avc"){
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    override fun decodeVideoByMediaCodec(length: Int, bytes: ByteArray) {
+
+    }
+
+    fun initDecodeH264(){
+
     }
 
     init {

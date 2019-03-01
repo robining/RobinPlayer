@@ -66,55 +66,58 @@ void IStreamDecoder::processPacketQueue() {
         pthread_mutex_unlock(&mutexSeeking);
         pthread_mutex_unlock(&mutexDecodePacket);
 
-        int result = avcodec_send_packet(codecContext, packet);
+        processPacket(packet);
+    }
+}
+
+void IStreamDecoder::processPacket(AVPacket *packet) {
+    int result = avcodec_send_packet(codecContext, packet);
+    if (result < 0) {
+        if (result == AVERROR_EOF) {//the end of file
+            av_packet_free(&packet);
+            return;
+        } else {//found a exception
+            av_packet_free(&packet);
+            LOGE(">>>send packet:%s", av_err2str(result));
+            return;
+        }
+    }
+
+    while (isRunning) {
+        AVFrame *frame = av_frame_alloc();
+        result = avcodec_receive_frame(codecContext, frame);
         if (result < 0) {
             if (result == AVERROR_EOF) {//the end of file
-                av_packet_free(&packet);
-                continue;
-            } else {//found a exception
-                av_packet_free(&packet);
-                LOGE(">>>send packet:%s", av_err2str(result));
-                continue;
-            }
-        }
-
-        while (isRunning) {
-            AVFrame *frame = av_frame_alloc();
-            result = avcodec_receive_frame(codecContext, frame);
-            if (result < 0) {
-                if (result == AVERROR_EOF) {//the end of file
-                    av_frame_free(&frame);
-                    break;
-                } else {//found a exception
-                    av_frame_free(&frame);
-                    LOGE(">>>receive frame:%s", av_err2str(result));
-                    break;
-                }
-            }
-
-            double progress = frame->pts * av_q2d(this->stream->time_base);
-            JavaBridge::getInstance()->onPreloadProgressChanged(progress);
-
-            if (seeking) {
                 av_frame_free(&frame);
-                break; //丢弃当前播放的数据
+                break;
+            } else {//found a exception
+                av_frame_free(&frame);
+                LOGE(">>>receive frame:%s", av_err2str(result));
+                break;
             }
-
-            if (framesQueue.size() > MAX_QUEUE_SIZE) {
-                LOGI(">>>frame queue is full,wait frame queue pop...");
-                pthread_cond_wait(&condFrameBufferFulled, NULL);
-            }
-
-            pthread_mutex_lock(&mutexDecodeFrame);
-            framesQueue.push(frame);
-            LOGI(">>>enqueue a frame...");
-            pthread_cond_signal(&condFrameQueueHaveFrame);
-            pthread_mutex_unlock(&mutexDecodeFrame);
         }
 
+        double progress = frame->pts * av_q2d(this->stream->time_base);
+        JavaBridge::getInstance()->onPreloadProgressChanged(progress);
 
-        av_packet_free(&packet);
+        if (seeking) {
+            av_frame_free(&frame);
+            break; //丢弃当前播放的数据
+        }
+
+        if (framesQueue.size() > MAX_QUEUE_SIZE) {
+            LOGI(">>>frame queue is full,wait frame queue pop...");
+            pthread_cond_wait(&condFrameBufferFulled, NULL);
+        }
+
+        pthread_mutex_lock(&mutexDecodeFrame);
+        framesQueue.push(frame);
+        LOGI(">>>enqueue a frame...");
+        pthread_cond_signal(&condFrameQueueHaveFrame);
+        pthread_mutex_unlock(&mutexDecodeFrame);
     }
+
+    av_packet_free(&packet);
 }
 
 void IStreamDecoder::enqueue(AVPacket *packet) {

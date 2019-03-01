@@ -31,6 +31,7 @@ protected:
 
     AVFrame* popFrame();
     virtual void processPacketQueue();
+    virtual void processPacket(AVPacket* packet);
 private:
     const int MAX_QUEUE_SIZE = 50; //注意配置 否则可能会出现内存溢出
     pthread_t decodePacketThread;

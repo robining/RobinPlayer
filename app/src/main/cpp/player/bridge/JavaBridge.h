@@ -30,6 +30,8 @@ public:
     void onPreloadProgressChanged(double progress);
     void onPlayAudioFrame(int length,void* buffer);
     void onPlayVideoFrame(int width,int height,void* y, void* u, void* v);
+    bool isSupportDecodeByMediaCodec(const char* format);
+    void decodeVideoByMediaCodec(int length, void* buffer);
 };
 
 

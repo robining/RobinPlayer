@@ -17,8 +17,12 @@ public:
     ~VideoStreamDecoder();
 private:
     pthread_t playerThread;
+    bool supportDecodeByMediaCodec = false;
     static void *__internalPlayVideo(void *data);
     void playFrames();
+    void processPacket(AVPacket* packet);
+    AVBSFContext* initNativeSupportMediaCodec();
+    AVBSFContext* avbsfContext = NULL;
 };
 
 

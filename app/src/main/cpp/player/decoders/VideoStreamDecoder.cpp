@@ -7,8 +7,38 @@
 VideoStreamDecoder::VideoStreamDecoder(AVStream *avStream, AVCodecContext *codecContext,
                                        SyncHandler *syncHandler)
         : IStreamDecoder(avStream, codecContext, syncHandler) {
-    pthread_create(&playerThread, NULL, __internalPlayVideo, this);
+    supportDecodeByMediaCodec = JavaBridge::getInstance()->isSupportDecodeByMediaCodec(
+            codecContext->codec_descriptor->name);
+    if (supportDecodeByMediaCodec) {
+        avbsfContext = initNativeSupportMediaCodec();
+        if (avbsfContext == NULL) {
+            supportDecodeByMediaCodec = false;
+        }
+    }
+    LOGE(">>>GGG:是否支持硬解码:%d", supportDecodeByMediaCodec);
+    if (!supportDecodeByMediaCodec) {
+        pthread_create(&playerThread, NULL, __internalPlayVideo, this);
+    }
 }
+
+
+void VideoStreamDecoder::processPacket(AVPacket *packet) {
+    if (!supportDecodeByMediaCodec) {
+        IStreamDecoder::processPacket(packet);
+    } else {
+        if (av_bsf_send_packet(avbsfContext, packet) < 0) {
+            av_packet_free(&packet);
+            return;
+        }
+
+        while (av_bsf_receive_packet(avbsfContext, packet) == 0) {
+            JavaBridge::getInstance()->decodeVideoByMediaCodec(packet->size, packet->data);
+        }
+
+        av_packet_free(&packet);
+    }
+}
+
 
 void *VideoStreamDecoder::__internalPlayVideo(void *data) {
     VideoStreamDecoder *videoStreamDecoder = static_cast<VideoStreamDecoder *>(data);
@@ -48,7 +78,7 @@ void VideoStreamDecoder::playFrames() {
 
             LOGE(">>>video play:%f   audio play:%f,  need sleep:%f", clock, syncHandler->audioClock,
                  diffWithAudioClock);
-            if(diffWithAudioClock > 1){ //如果大于一定时间 直接放弃该帧...（seek后可能会相差很多）
+            if (diffWithAudioClock > 1) { //如果大于一定时间 直接放弃该帧...（seek后可能会相差很多）
                 av_frame_free(&frame);
                 continue;
             }
@@ -104,4 +134,41 @@ void VideoStreamDecoder::playFrames() {
 
 VideoStreamDecoder::~VideoStreamDecoder() {
     pthread_exit(&playerThread);
+}
+
+AVBSFContext *VideoStreamDecoder::initNativeSupportMediaCodec() {
+    LOGE(">>>GGG:尝试初始化本地硬解码");
+    const AVBitStreamFilter *streamFilter = NULL;
+    if (strcasecmp(codecContext->codec_descriptor->name, "h264")) {
+        streamFilter = av_bsf_get_by_name("h264_mp4toannexb");
+    } else if (strcasecmp(codecContext->codec_descriptor->name, "h265")) {
+        streamFilter = av_bsf_get_by_name("hevc_mp4toannexb");
+    }
+
+    if (streamFilter == NULL) {
+        LOGE(">>>GGG:没有找到streamFilter:%s", codecContext->codec_descriptor->name);
+        return NULL;
+    }
+    AVBSFContext *context = NULL;
+    if (av_bsf_alloc(streamFilter, &context) < 0) {
+        LOGE(">>>GGG:av_bsf_alloc failed");
+        //初始化失败
+        return NULL;
+    }
+
+    if (avcodec_parameters_copy(context->par_in, stream->codecpar) < 0) {
+        av_bsf_free(&context);
+        LOGE(">>>GGG:avcodec_parameters_copy failed");
+        return NULL;
+    }
+
+    av_bsf_init(context);
+//    if (av_bsf_init(context) != 0) {
+//        LOGE(">>>GGG:av_bsf_init failed");
+//        av_bsf_free(&context);
+//        return NULL;
+//    }
+
+    context->time_base_in = stream->time_base;
+    return context;
 }

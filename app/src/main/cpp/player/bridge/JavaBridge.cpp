@@ -159,5 +159,37 @@ void JavaBridge::onPlayVideoFrame(int width, int height, void *y, void *u, void 
     }
 }
 
+bool JavaBridge::isSupportDecodeByMediaCodec(const char *format) {
+    bool result = false;
+    if (isInited()) {
+        JNIEnv *jniEnv = getJniEnv();
+        jclass cls = jniEnv->GetObjectClass(this->javaBridgeObject);
+        jmethodID method = jniEnv->GetMethodID(cls, "isSupportDecodeByMediaCodec", "(Ljava/lang/String;)Z");
+        result = jniEnv->CallBooleanMethod(javaBridgeObject, method, jniEnv->NewStringUTF(format));
+        if (jniEnv != mainJniEnv) { //不是在主线程
+            this->javaVM->DetachCurrentThread();
+        }
+    }
+
+    return result;
+}
+
+void JavaBridge::decodeVideoByMediaCodec(int length, void *buffer) {
+    if (isInited()) {
+        JNIEnv *jniEnv = getJniEnv();
+        jclass cls = jniEnv->GetObjectClass(this->javaBridgeObject);
+        jmethodID method = jniEnv->GetMethodID(cls, "decodeVideoByMediaCodec", "(I[B)V");
+        jbyteArray bytes = jniEnv->NewByteArray(length);
+        jniEnv->SetByteArrayRegion(bytes, 0, length, static_cast<const jbyte *>(buffer));
+        jniEnv->CallVoidMethod(javaBridgeObject, method, length, bytes);
+
+        jniEnv->DeleteLocalRef(bytes);
+
+        if (jniEnv != mainJniEnv) { //不是在主线程
+            this->javaVM->DetachCurrentThread();
+        }
+    }
+}
+
 
 
