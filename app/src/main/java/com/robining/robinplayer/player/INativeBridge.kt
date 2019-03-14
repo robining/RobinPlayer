@@ -1,4 +1,4 @@
-package com.robining.robinplayer
+package com.robining.robinplayer.player
 
 interface INativeBridge {
     fun onPlayStateChanged(oldState: Int, newState: Int)

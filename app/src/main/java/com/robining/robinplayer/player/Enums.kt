@@ -1,4 +1,4 @@
-package com.robining.robinplayer
+package com.robining.robinplayer.player
 
 enum class AUDIO_CHANNEL {
     LEFT,

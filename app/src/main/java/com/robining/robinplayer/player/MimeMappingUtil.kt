@@ -1,4 +1,4 @@
-package com.robining.robinplayer
+package com.robining.robinplayer.player
 
 import android.media.MediaCodecList
 
@@ -14,7 +14,8 @@ object MimeMappingUtil {
     }
 
     fun isSupportByMediaCodec(codecName: String): Boolean {
-        val mimeType = getMimeTypeByCodecName(codecName) ?: return false
+        val mimeType = getMimeTypeByCodecName(codecName)
+                ?: return false
         val codecCount = MediaCodecList.getCodecCount()
         for (i in 0 until codecCount) {
             val codecInfo = MediaCodecList.getCodecInfoAt(i)

@@ -1,4 +1,4 @@
-package com.robining.robinplayer
+package com.robining.robinplayer.player
 
 import android.opengl.GLSurfaceView
 import android.view.SurfaceView

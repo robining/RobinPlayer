@@ -18,7 +18,7 @@ JNI_OnLoad(JavaVM *jvm, void *args) {
 //---------------------------------------------------external interface---------------------------------------------------
 extern "C" JNIEXPORT void
 JNICALL
-Java_com_robining_robinplayer_RobinPlayer_nativeInit(
+Java_com_robining_robinplayer_player_RobinPlayer_nativeInit(
         JNIEnv *env,
         jobject jobj,
         jobject bridge) {
@@ -29,7 +29,7 @@ Java_com_robining_robinplayer_RobinPlayer_nativeInit(
 
 extern "C" JNIEXPORT void
 JNICALL
-Java_com_robining_robinplayer_RobinPlayer_nativePrepare(
+Java_com_robining_robinplayer_player_RobinPlayer_nativePrepare(
         JNIEnv *env,
         jobject jobj,
         jstring path) {
@@ -38,7 +38,7 @@ Java_com_robining_robinplayer_RobinPlayer_nativePrepare(
 
 extern "C" JNIEXPORT void
 JNICALL
-Java_com_robining_robinplayer_RobinPlayer_nativePlay(
+Java_com_robining_robinplayer_player_RobinPlayer_nativePlay(
         JNIEnv *env,
         jobject jobj) {
     player->play();
@@ -46,7 +46,7 @@ Java_com_robining_robinplayer_RobinPlayer_nativePlay(
 
 extern "C" JNIEXPORT void
 JNICALL
-Java_com_robining_robinplayer_RobinPlayer_nativePause(
+Java_com_robining_robinplayer_player_RobinPlayer_nativePause(
         JNIEnv *env,
         jobject jobj) {
     player->pause();
@@ -54,7 +54,7 @@ Java_com_robining_robinplayer_RobinPlayer_nativePause(
 
 extern "C" JNIEXPORT void
 JNICALL
-Java_com_robining_robinplayer_RobinPlayer_nativeResume(
+Java_com_robining_robinplayer_player_RobinPlayer_nativeResume(
         JNIEnv *env,
         jobject jobj) {
     player->resume();
@@ -62,7 +62,7 @@ Java_com_robining_robinplayer_RobinPlayer_nativeResume(
 
 extern "C" JNIEXPORT void
 JNICALL
-Java_com_robining_robinplayer_RobinPlayer_nativeStop(
+Java_com_robining_robinplayer_player_RobinPlayer_nativeStop(
         JNIEnv *env,
         jobject jobj) {
     player->stop();
@@ -70,7 +70,7 @@ Java_com_robining_robinplayer_RobinPlayer_nativeStop(
 
 extern "C" JNIEXPORT void
 JNICALL
-Java_com_robining_robinplayer_RobinPlayer_nativeDestroy(
+Java_com_robining_robinplayer_player_RobinPlayer_nativeDestroy(
         JNIEnv *env,
         jobject jobj) {
     player->release();
@@ -79,7 +79,7 @@ Java_com_robining_robinplayer_RobinPlayer_nativeDestroy(
 
 extern "C" JNIEXPORT void
 JNICALL
-Java_com_robining_robinplayer_RobinPlayer_nativeSeekTo(
+Java_com_robining_robinplayer_player_RobinPlayer_nativeSeekTo(
         JNIEnv *env,
         jobject jobj,
         jint seconds) {
@@ -88,7 +88,7 @@ Java_com_robining_robinplayer_RobinPlayer_nativeSeekTo(
 
 extern "C" JNIEXPORT void
 JNICALL
-Java_com_robining_robinplayer_RobinPlayer_nativeSetAudioChannel(
+Java_com_robining_robinplayer_player_RobinPlayer_nativeSetAudioChannel(
         JNIEnv *env,
         jobject jobj,
         jint channel) {

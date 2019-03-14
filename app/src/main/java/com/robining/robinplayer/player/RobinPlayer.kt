@@ -1,4 +1,4 @@
-package com.robining.robinplayer
+package com.robining.robinplayer.player
 
 import android.content.Context
 import android.graphics.SurfaceTexture

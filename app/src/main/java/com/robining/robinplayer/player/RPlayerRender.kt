@@ -1,4 +1,4 @@
-package com.robining.robinplayer
+package com.robining.robinplayer.player
 
 import android.content.Context
 import android.graphics.SurfaceTexture
@@ -7,6 +7,7 @@ import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.util.Log
 import android.view.Surface
+import com.robining.robinplayer.R
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
