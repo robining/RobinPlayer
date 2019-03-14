@@ -13,7 +13,7 @@ import java.io.File
 
 class PlayerActivity : AppCompatActivity(), IPlayer.IPlayerCallback, SeekBar.OnSeekBarChangeListener {
 
-    lateinit var player: IPlayer
+    lateinit var player: RobinPlayer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,6 +86,14 @@ class PlayerActivity : AppCompatActivity(), IPlayer.IPlayerCallback, SeekBar.OnS
 
     fun stopRecord(view: View) {
         player.stopRecord()
+    }
+
+    fun startPush(view: View){
+        player.connect("rtmp://132.232.32.188:1936/live/room")
+    }
+
+    fun stopPush(view: View){
+
     }
 
     override fun onPlayStateChanged(oldState: PLAYER_STATE, newState: PLAYER_STATE) {

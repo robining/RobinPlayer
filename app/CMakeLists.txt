@@ -48,6 +48,10 @@ add_library( # Sets the name of the library.
         src/main/cpp/player/decoders/SyncHandler.cpp
         src/main/cpp/player/bridge/JavaBridge.h
         src/main/cpp/player/bridge/JavaBridge.cpp
+        src/main/cpp/rtmp/BlockedQueue.h
+        src/main/cpp/rtmp/BlockedQueue.cpp
+        src/main/cpp/rtmp/RobinPusher.h
+        src/main/cpp/rtmp/RobinPusher.cpp
         )
 
 add_library(avcodec-57 SHARED IMPORTED)

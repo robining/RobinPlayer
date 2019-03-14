@@ -4,9 +4,11 @@
 #include "player/IPlayer.h"
 #include "player/RobinPlayer.h"
 #include "player/bridge/JavaBridge.h"
+#include "rtmp/RobinPusher.h"
 
 //---------------------------------------------------inner impl----------------------------------------------------------
 IPlayer *player;
+RobinPusher *pusher;
 JavaVM *javaVM;
 extern "C" JNIEXPORT jint
 JNICALL
@@ -25,6 +27,7 @@ Java_com_robining_robinplayer_player_RobinPlayer_nativeInit(
     JavaBridge::getInstance()->init(javaVM, env,
                                     env->NewGlobalRef(bridge), pthread_self());
     player = new RobinPlayer();
+    pusher = new RobinPusher();
 }
 
 extern "C" JNIEXPORT void
@@ -74,7 +77,9 @@ Java_com_robining_robinplayer_player_RobinPlayer_nativeDestroy(
         JNIEnv *env,
         jobject jobj) {
     player->release();
+    pusher->close();
     delete player;
+    delete pusher;
 }
 
 extern "C" JNIEXPORT void
@@ -93,4 +98,14 @@ Java_com_robining_robinplayer_player_RobinPlayer_nativeSetAudioChannel(
         jobject jobj,
         jint channel) {
     player->setAudioChannel(static_cast<AUDIO_CHANNEL_TYPE>(channel));
+}
+
+
+extern "C" JNIEXPORT void
+JNICALL
+Java_com_robining_robinplayer_player_RobinPlayer_nativeConnectPusher(
+        JNIEnv *env,
+        jobject jobj,
+        jstring url) {
+    pusher->connect(env->GetStringUTFChars(url, JNI_FALSE));
 }

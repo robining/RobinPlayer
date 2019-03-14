@@ -17,7 +17,11 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 import java.nio.ByteBuffer
 
-class RobinPlayer(val context: Context) : IPlayer, INativeBridge, RPlayerRender.OnSurfaceCreatedListener {
+class RobinPlayer(val context: Context) : IPlayer,IPusher, INativeBridge, RPlayerRender.OnSurfaceCreatedListener {
+    override fun connect(url: String) {
+        nativeConnectPusher(url)
+    }
+
     override fun onSurfaceCreated(surface: Surface, surfaceTexture: SurfaceTexture) {
         this.decodeVideoSurface = surface
         surfaceTexture.setOnFrameAvailableListener {
@@ -141,6 +145,8 @@ class RobinPlayer(val context: Context) : IPlayer, INativeBridge, RPlayerRender.
     private external fun nativeSeekTo(seconds: Int)
 
     private external fun nativeSetAudioChannel(channel: Int)
+
+    private external fun nativeConnectPusher(url: String)
 
     override fun onPlayStateChanged(oldState: Int, newState: Int) {
         val oldPlayerState = PLAYER_STATE.values()[oldState]
