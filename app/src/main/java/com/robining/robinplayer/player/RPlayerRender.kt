@@ -121,7 +121,7 @@ class RPlayerRender(private val context: Context) : GLSurfaceView.Renderer {
 
     private fun installMediaCodecSupport(textureRef: ArrayList<SurfaceTexture>?): Surface {
         val vertexSource = WlShaderUtil.readRawTxt(context, R.raw.vertex_shader)
-        val fragmentSource = WlShaderUtil.readRawTxt(context, R.raw.fragment_mediacodec_shader)
+        val fragmentSource = WlShaderUtil.readRawTxt(context, R.raw.fragment_oes_shader)
         program_mediacodec = WlShaderUtil.createProgram(vertexSource, fragmentSource)
 
         avPosition_mediacodec = GLES20.glGetAttribLocation(program_mediacodec, "av_Position")

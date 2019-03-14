@@ -1,58 +1,56 @@
 package com.robining.robinplayer.camera
 
-import android.graphics.ImageFormat
-import android.hardware.Camera
+import android.graphics.SurfaceTexture
 import android.media.MediaCodec
+import android.media.MediaCodecInfo
+import android.media.MediaFormat
+import android.opengl.GLSurfaceView
 import android.os.Bundle
-import android.view.Surface
+import android.util.Log
+import android.view.TextureView
 import com.robining.robinplayer.R
 import com.robining.robinplayer.base.BaseActivity
 import kotlinx.android.synthetic.main.activity_camera.*
-import android.R.attr.configure
-import android.media.MediaFormat
-import android.media.MediaCodecInfo
-import android.util.Log
-import com.robining.robinplayer.player.MimeMappingUtil
-import java.io.IOException
+import kotlin.concurrent.thread
 
 
 class CameraActivity : BaseActivity() {
-    private val TAG = "CameraActivity"
-    private var videoBufferinfo :MediaCodec.BufferInfo? = null
-    private var videoFormat : MediaFormat? = null
-    private var videoEncodec : MediaCodec? = null
-    private var surface : Surface? = null
+    private var encodec: MediaCodec? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_camera)
 
-        initVideoEncodec("video/avc",720,1280)
-        glSurfaceView.init(surface)
+        val mime = "video/avc"
+        val width = 1080
+        val height = 2248
+        val videoFormat = MediaFormat.createVideoFormat(mime, width, height)
+        videoFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+        videoFormat.setInteger(MediaFormat.KEY_BIT_RATE, width * height * 4)
+        videoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30)
+        videoFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+        encodec = MediaCodec.createEncoderByType(mime)
+        encodec!!.configure(videoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
 
-    }
+        val surface = encodec!!.createInputSurface()
+        println(">>>encodec surface:$surface")
+        glSurfaceView.setRenderer(MultiSharedRender(this, arrayOf(CameraRender(this, SurfaceTexture.OnFrameAvailableListener { glSurfaceView.requestRender() })), arrayOf(surface)))
+        glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+        encodec!!.start()
 
-    private fun initVideoEncodec(mimeType: String, width: Int, height: Int) {
-        try {
-            videoBufferinfo = MediaCodec.BufferInfo()
-            videoFormat = MediaFormat.createVideoFormat(mimeType, width, height)
-            videoFormat!!.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-            videoFormat!!.setInteger(MediaFormat.KEY_BIT_RATE, width * height * 4)
-            videoFormat!!.setInteger(MediaFormat.KEY_FRAME_RATE, 30)
-            videoFormat!!.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
-
-            videoEncodec = MediaCodec.createEncoderByType(mimeType)
-            videoEncodec!!.configure(videoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-
-            surface = videoEncodec!!.createInputSurface()
-
-        } catch (e: IOException) {
-            e.printStackTrace()
-            videoEncodec = null
-            videoFormat = null
-            videoBufferinfo = null
-            surface = null
+        thread {
+            val mediaInfo = MediaCodec.BufferInfo()
+            while (true) {
+                var outbufferIndex = encodec!!.dequeueOutputBuffer(mediaInfo, 10)
+                while (outbufferIndex >= 0) {
+                    val buffer = encodec!!.outputBuffers[outbufferIndex]
+                    buffer.position(mediaInfo.offset)
+                    buffer.limit(mediaInfo.size + mediaInfo.offset)
+                    Log.e("MainActivity", ">>>encoded ${mediaInfo.size} data")
+                    encodec!!.releaseOutputBuffer(outbufferIndex, false)
+                    outbufferIndex = encodec!!.dequeueOutputBuffer(mediaInfo, 10)
+                }
+            }
         }
-
     }
 }
