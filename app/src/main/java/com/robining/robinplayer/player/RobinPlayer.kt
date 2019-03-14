@@ -17,15 +17,16 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 import java.nio.ByteBuffer
 
-class RobinPlayer(val context: Context) : IPlayer,IPusher, INativeBridge, RPlayerRender.OnSurfaceCreatedListener {
+class RobinPlayer(val context: Context) : IPlayer, IPusher, INativeBridge, RPlayerRender.OnSurfaceCreatedListener {
     override fun connect(url: String) {
         nativeConnectPusher(url)
+        isEnablePush = true
     }
 
     override fun onSurfaceCreated(surface: Surface, surfaceTexture: SurfaceTexture) {
         this.decodeVideoSurface = surface
         surfaceTexture.setOnFrameAvailableListener {
-            Log.i(TAG,"mediacodec find a frame,need request render")
+            Log.i(TAG, "mediacodec find a frame,need request render")
             glSurfaceView?.requestRender()
         }
     }
@@ -43,6 +44,7 @@ class RobinPlayer(val context: Context) : IPlayer,IPusher, INativeBridge, RPlaye
     private val playerRender = RPlayerRender(context)
     private var glSurfaceView: GLSurfaceView? = null
     private var decodeVideoSurface: Surface? = null
+    private var isEnablePush = false
 
     override fun setCallback(callback: IPlayer.IPlayerCallback) {
         this.playerCallback = callback
@@ -148,6 +150,8 @@ class RobinPlayer(val context: Context) : IPlayer,IPusher, INativeBridge, RPlaye
 
     private external fun nativeConnectPusher(url: String)
 
+    private external fun nativePushAudio(bytes: ByteArray, length: Int)
+
     override fun onPlayStateChanged(oldState: Int, newState: Int) {
         val oldPlayerState = PLAYER_STATE.values()[oldState]
         val newPlayerState = PLAYER_STATE.values()[newState]
@@ -212,8 +216,19 @@ class RobinPlayer(val context: Context) : IPlayer,IPusher, INativeBridge, RPlaye
                 val outBuffer = mediaRecordAACEncoder?.outputBuffers!![outBufferIndex]
                 outBuffer.position(mediaCodecBufferInfo.offset)
                 outBuffer.limit(mediaCodecBufferInfo.size)
+
+                if (isEnablePush) {
+                    val pushData = ByteArray(mediaCodecBufferInfo.size)
+                    outBuffer.get(pushData, 0, mediaCodecBufferInfo.size)
+                    //
+                    nativePushAudio(pushData, pushData.size)
+
+                    outBuffer.position(mediaCodecBufferInfo.offset)
+                    outBuffer.limit(mediaCodecBufferInfo.size)
+                }
+
                 val sizePerFrame = 7 + mediaCodecBufferInfo.size
-                val outByteBuffer = ByteArray(sizePerFrame) //因为adts占用7个字节
+                val outByteBuffer = ByteArray(sizePerFrame) //因为adts占用7个字节+
                 addADtsHeader(outByteBuffer, sizePerFrame, mediaRecordAACEncoder?.outputFormat?.getInteger(MediaFormat.KEY_SAMPLE_RATE)!!)
                 outBuffer.get(outByteBuffer, 7, mediaCodecBufferInfo.size)
                 Log.e(TAG, "encoded a frame to stream")
@@ -299,7 +314,7 @@ class RobinPlayer(val context: Context) : IPlayer,IPusher, INativeBridge, RPlaye
             return false
         }
 
-        if(isInitedVideoDecoder){
+        if (isInitedVideoDecoder) {
             isInitedVideoDecoder = false
             mediaVideoDecoder?.stop()
             mediaVideoDecoder?.release()

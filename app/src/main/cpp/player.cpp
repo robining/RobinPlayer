@@ -109,3 +109,13 @@ Java_com_robining_robinplayer_player_RobinPlayer_nativeConnectPusher(
         jstring url) {
     pusher->connect(env->GetStringUTFChars(url, JNI_FALSE));
 }
+
+extern "C" JNIEXPORT void
+JNICALL
+Java_com_robining_robinplayer_player_RobinPlayer_nativePushAudio(
+        JNIEnv *env,
+        jobject jobj,
+        jbyteArray data,
+        jint length) {
+    pusher->pushAudio(reinterpret_cast<char *>(data), length);
+}

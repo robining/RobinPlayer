@@ -20,11 +20,13 @@ private:
     bool isRunning = false;
     void startSendLoop();
     static void *_startSendLoop(void* data);
+    uint32_t startTime = 0;
 public:
     RobinPusher();
     ~RobinPusher();
     void connect(const char* url);
     void close();
+    void pushAudio(char* data,int length);
 };
 
 

@@ -89,7 +89,7 @@ class PlayerActivity : AppCompatActivity(), IPlayer.IPlayerCallback, SeekBar.OnS
     }
 
     fun startPush(view: View){
-        player.connect("rtmp://132.232.32.188:1936/live/room")
+        player.connect("rtmp://192.168.18.96:1935/live/room")
     }
 
     fun stopPush(view: View){
