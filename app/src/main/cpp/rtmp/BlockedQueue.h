@@ -13,9 +13,9 @@ template <typename T>
 
 class BlockedQueue {
 private:
-    pthread_mutex_t mutexOperate{};
-    pthread_cond_t condFulled{};
-    pthread_cond_t condIsEmpty{};
+    pthread_mutex_t mutexOperate;
+    pthread_cond_t condFulled;
+    pthread_cond_t condIsEmpty;
     queue<T> innerQueue = queue<T>();
 public:
     BlockedQueue();

@@ -14,7 +14,7 @@ extern "C" {
 
 class RobinPusher {
 private:
-    RTMP *rtmp= nullptr;
+    RTMP *rtmp= NULL;
     BlockedQueue<RTMPPacket*> packetQueue;
     pthread_t threadSend;
     bool isRunning = false;

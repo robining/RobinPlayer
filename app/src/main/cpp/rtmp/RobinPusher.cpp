@@ -2,6 +2,7 @@
 // Created by Robining on 2019/3/14.
 //
 
+#include <malloc.h>
 #include "RobinPusher.h"
 
 RobinPusher::RobinPusher() {
@@ -18,7 +19,7 @@ void RobinPusher::connect(const char *url) {
     RTMP_EnableWrite(rtmp);
 
     //连接服务器
-    if (!RTMP_Connect(rtmp, nullptr)) {
+    if (!RTMP_Connect(rtmp, NULL)) {
         LOGE(">>>connect rtmp failed");
         return;
     }

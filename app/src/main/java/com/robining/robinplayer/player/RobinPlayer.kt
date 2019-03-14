@@ -8,6 +8,7 @@ import android.media.MediaFormat
 import android.opengl.GLSurfaceView
 import android.os.Handler
 import android.os.Looper
+import android.provider.MediaStore
 import android.util.Log
 import android.view.Surface
 import android.view.SurfaceView
@@ -213,28 +214,31 @@ class RobinPlayer(val context: Context) : IPlayer, IPusher, INativeBridge, RPlay
             val mediaCodecBufferInfo = MediaCodec.BufferInfo()
             var outBufferIndex = mediaRecordAACEncoder?.dequeueOutputBuffer(mediaCodecBufferInfo, 0)
             while (outBufferIndex != null && outBufferIndex >= 0) {
-                val outBuffer = mediaRecordAACEncoder?.outputBuffers!![outBufferIndex]
-                outBuffer.position(mediaCodecBufferInfo.offset)
-                outBuffer.limit(mediaCodecBufferInfo.size)
-
-                if (isEnablePush) {
-                    val pushData = ByteArray(mediaCodecBufferInfo.size)
-                    outBuffer.get(pushData, 0, mediaCodecBufferInfo.size)
-                    //
-                    nativePushAudio(pushData, pushData.size)
-
+                if(outBufferIndex != MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    val outBuffer = mediaRecordAACEncoder?.outputBuffers!![outBufferIndex]
                     outBuffer.position(mediaCodecBufferInfo.offset)
                     outBuffer.limit(mediaCodecBufferInfo.size)
+
+                    if (isEnablePush) {
+                        val pushData = ByteArray(outBuffer.remaining())
+                        outBuffer.get(pushData, 0, pushData.size)
+                        //
+                        nativePushAudio(pushData, pushData.size)
+
+                        outBuffer.position(mediaCodecBufferInfo.offset)
+                        outBuffer.limit(mediaCodecBufferInfo.size)
+                    }
+
+                    val sizePerFrame = 7 + mediaCodecBufferInfo.size
+                    val outByteBuffer = ByteArray(sizePerFrame) //因为adts占用7个字节+
+                    addADtsHeader(outByteBuffer, sizePerFrame, mediaRecordAACEncoder?.outputFormat?.getInteger(MediaFormat.KEY_SAMPLE_RATE)!!)
+                    outBuffer.get(outByteBuffer, 7, mediaCodecBufferInfo.size)
+                    Log.e(TAG, "encoded a frame to stream")
+                    encodeOuputStream?.write(outByteBuffer, 0, sizePerFrame)
+                    //还原位置
+                    outBuffer.position(mediaCodecBufferInfo.offset)
                 }
 
-                val sizePerFrame = 7 + mediaCodecBufferInfo.size
-                val outByteBuffer = ByteArray(sizePerFrame) //因为adts占用7个字节+
-                addADtsHeader(outByteBuffer, sizePerFrame, mediaRecordAACEncoder?.outputFormat?.getInteger(MediaFormat.KEY_SAMPLE_RATE)!!)
-                outBuffer.get(outByteBuffer, 7, mediaCodecBufferInfo.size)
-                Log.e(TAG, "encoded a frame to stream")
-                encodeOuputStream?.write(outByteBuffer, 0, sizePerFrame)
-                //还原位置
-                outBuffer.position(mediaCodecBufferInfo.offset)
                 mediaRecordAACEncoder?.releaseOutputBuffer(outBufferIndex, false)
                 outBufferIndex = mediaRecordAACEncoder?.dequeueOutputBuffer(mediaCodecBufferInfo, 0)
             }
