@@ -10,6 +10,7 @@ import com.robining.robinplayer.base.IPermissionRequestCallback
 import com.robining.robinplayer.camera.CameraActivity
 import com.robining.robinplayer.opengl.EglActivity
 import com.robining.robinplayer.player.PlayerActivity
+import com.robining.robinplayer.pusher.PusherActivity
 
 class MainActivity : BaseActivity() {
     private val context : Context = this
@@ -35,7 +36,11 @@ class MainActivity : BaseActivity() {
         },Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }
 
-    fun gotoEgl(view: View){
-        startActivity(EglActivity::class.java)
+    fun gotoPusher(view: View){
+        requestPermission(object :IPermissionRequestCallback{
+            override fun onAllPermissionGranted() {
+                startActivity(PusherActivity::class.java)
+            }
+        },Manifest.permission.RECORD_AUDIO,Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }
 }

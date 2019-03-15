@@ -81,3 +81,49 @@ void RobinPusher::pushAudio(char *data, int length) {
     packet->m_nInfoField2 = rtmp->m_stream_id;
     packetQueue.push(packet);
 }
+
+void RobinPusher::pushSpsAndPps(char *sps, int spsLength, char *pps, int ppsLength) {
+    int bodysize = spsLength + ppsLength + 16;
+    RTMPPacket *packet = static_cast<RTMPPacket *>(malloc(sizeof(RTMPPacket)));
+    RTMPPacket_Alloc(packet, bodysize);
+    RTMPPacket_Reset(packet);
+
+    char *body = packet->m_body;
+
+    int i = 0;
+
+    body[i++] = 0x17;
+
+    body[i++] = 0x00;
+    body[i++] = 0x00;
+    body[i++] = 0x00;
+    body[i++] = 0x00;
+
+    body[i++] = 0x01;
+    body[i++] = sps[1];
+    body[i++] = sps[2];
+    body[i++] = sps[3];
+
+    body[i++] = 0xFF;
+
+    body[i++] = 0xE1;
+    body[i++] = (spsLength >> 8) & 0xff;
+    body[i++] = spsLength & 0xff;
+    memcpy(&body[i], sps, spsLength);
+    i += spsLength;
+
+    body[i++] = 0x01;
+    body[i++] = (ppsLength >> 8) & 0xff;
+    body[i++] = ppsLength & 0xff;
+    memcpy(&body[i], pps, ppsLength);
+
+    packet->m_packetType = RTMP_PACKET_TYPE_AUDIO;
+    packet->m_nBodySize = bodysize;
+    packet->m_nTimeStamp = 0;
+    packet->m_hasAbsTimestamp = 0;
+    packet->m_nChannel = 0x04;
+    packet->m_headerType = RTMP_PACKET_SIZE_MEDIUM;
+    packet->m_nInfoField2 = rtmp->m_stream_id;
+
+    packetQueue.push(packet);
+}

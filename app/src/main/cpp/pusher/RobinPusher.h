@@ -27,6 +27,7 @@ public:
     void connect(const char* url);
     void close();
     void pushAudio(char* data,int length);
+    void pushSpsAndPps(char* sps,int spsLength,char* pps,int ppsLength);
 };
 
 

@@ -8,22 +8,17 @@ import android.media.MediaFormat
 import android.opengl.GLSurfaceView
 import android.os.Handler
 import android.os.Looper
-import android.provider.MediaStore
 import android.util.Log
 import android.view.Surface
 import android.view.SurfaceView
 import android.widget.Toast
+import com.robining.robinplayer.pusher.IPusher
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.nio.ByteBuffer
 
-class RobinPlayer(val context: Context) : IPlayer, IPusher, INativeBridge, RPlayerRender.OnSurfaceCreatedListener {
-    override fun connect(url: String) {
-        nativeConnectPusher(url)
-        isEnablePush = true
-    }
-
+class RobinPlayer(val context: Context) : IPlayer, INativeBridge, RPlayerRender.OnSurfaceCreatedListener {
     override fun onSurfaceCreated(surface: Surface, surfaceTexture: SurfaceTexture) {
         this.decodeVideoSurface = surface
         surfaceTexture.setOnFrameAvailableListener {
@@ -96,7 +91,7 @@ class RobinPlayer(val context: Context) : IPlayer, IPusher, INativeBridge, RPlay
 
     override fun startRecord(file: File) {
         synchronized(recorderLock) {
-            Log.e(TAG, "init aac encoder start")
+            Log.e(TAG, "init aac audioEncoder start")
             val mimeType = "audio/mp4a-latm"
             val mediaFormat = MediaFormat.createAudioFormat(mimeType, recordAACsampleRate, 2)
             mediaFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
@@ -108,18 +103,18 @@ class RobinPlayer(val context: Context) : IPlayer, IPusher, INativeBridge, RPlay
 
             encodeOuputStream = FileOutputStream(file) as OutputStream?
             isInitedAACEncoder = true
-            Log.e(TAG, "init aac encoder end")
+            Log.e(TAG, "init aac audioEncoder end")
         }
     }
 
     override fun stopRecord() {
         synchronized(recorderLock) {
             isInitedAACEncoder = false
-            Log.e(TAG, "destroy aac encoder start")
+            Log.e(TAG, "destroy aac audioEncoder start")
             mediaRecordAACEncoder?.release()
             mediaRecordAACEncoder = null
             encodeOuputStream?.close()
-            Log.e(TAG, "destroy aac encoder start")
+            Log.e(TAG, "destroy aac audioEncoder start")
         }
     }
 
@@ -148,10 +143,6 @@ class RobinPlayer(val context: Context) : IPlayer, IPusher, INativeBridge, RPlay
     private external fun nativeSeekTo(seconds: Int)
 
     private external fun nativeSetAudioChannel(channel: Int)
-
-    private external fun nativeConnectPusher(url: String)
-
-    private external fun nativePushAudio(bytes: ByteArray, length: Int)
 
     override fun onPlayStateChanged(oldState: Int, newState: Int) {
         val oldPlayerState = PLAYER_STATE.values()[oldState]
@@ -201,7 +192,7 @@ class RobinPlayer(val context: Context) : IPlayer, IPusher, INativeBridge, RPlay
             if (mediaRecordAACEncoder == null || !isInitedAACEncoder) {
                 return
             }
-            Log.e(TAG, "encoder frame start:$length")
+            Log.e(TAG, "audioEncoder frame start:$length")
             val inputBufferIndex: Int = mediaRecordAACEncoder?.dequeueInputBuffer(0) ?: return
 
             if (inputBufferIndex >= 0) {
@@ -218,17 +209,6 @@ class RobinPlayer(val context: Context) : IPlayer, IPusher, INativeBridge, RPlay
                     val outBuffer = mediaRecordAACEncoder?.outputBuffers!![outBufferIndex]
                     outBuffer.position(mediaCodecBufferInfo.offset)
                     outBuffer.limit(mediaCodecBufferInfo.size)
-
-                    if (isEnablePush) {
-                        val pushData = ByteArray(outBuffer.remaining())
-                        outBuffer.get(pushData, 0, pushData.size)
-                        //
-                        nativePushAudio(pushData, pushData.size)
-
-                        outBuffer.position(mediaCodecBufferInfo.offset)
-                        outBuffer.limit(mediaCodecBufferInfo.size)
-                    }
-
                     val sizePerFrame = 7 + mediaCodecBufferInfo.size
                     val outByteBuffer = ByteArray(sizePerFrame) //因为adts占用7个字节+
                     addADtsHeader(outByteBuffer, sizePerFrame, mediaRecordAACEncoder?.outputFormat?.getInteger(MediaFormat.KEY_SAMPLE_RATE)!!)
@@ -242,7 +222,7 @@ class RobinPlayer(val context: Context) : IPlayer, IPusher, INativeBridge, RPlay
                 mediaRecordAACEncoder?.releaseOutputBuffer(outBufferIndex, false)
                 outBufferIndex = mediaRecordAACEncoder?.dequeueOutputBuffer(mediaCodecBufferInfo, 0)
             }
-            Log.e(TAG, "encoder frame stopped")
+            Log.e(TAG, "audioEncoder frame stopped")
         }
     }
 

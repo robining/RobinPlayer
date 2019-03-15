@@ -5,6 +5,27 @@ include_directories(src/main/cpp/include)
 include_directories(src/main/cpp/soundtouch/include)
 include_directories(src/main/cpp/soundtouch/SoundTouch)
 include_directories(src/main/cpp/librtmp)
+
+add_library(
+        RobinPusher
+
+        SHARED
+
+        #rtmp
+        src/main/cpp/librtmp/amf.c
+        src/main/cpp/librtmp/hashswf.c
+        src/main/cpp/librtmp/log.c
+        src/main/cpp/librtmp/parseurl.c
+        src/main/cpp/librtmp/rtmp.c
+
+        #include files...
+        src/main/cpp/pusher.cpp
+        src/main/cpp/pusher/BlockedQueue.h
+        src/main/cpp/pusher/BlockedQueue.cpp
+        src/main/cpp/pusher/RobinPusher.h
+        src/main/cpp/pusher/RobinPusher.cpp
+)
+
 add_library( # Sets the name of the library.
         RobinPlayer
 
@@ -23,13 +44,6 @@ add_library( # Sets the name of the library.
         src/main/cpp/soundtouch/SoundTouch/InterpolateShannon.cpp
         src/main/cpp/soundtouch/SoundTouch/TDStretch.cpp
         src/main/cpp/soundtouch/SoundTouch/PeakFinder.cpp
-
-        #rtmp
-        src/main/cpp/librtmp/amf.c
-        src/main/cpp/librtmp/hashswf.c
-        src/main/cpp/librtmp/log.c
-        src/main/cpp/librtmp/parseurl.c
-        src/main/cpp/librtmp/rtmp.c
         
         #include files...
         src/main/cpp/player.cpp
@@ -48,10 +62,6 @@ add_library( # Sets the name of the library.
         src/main/cpp/player/decoders/SyncHandler.cpp
         src/main/cpp/player/bridge/JavaBridge.h
         src/main/cpp/player/bridge/JavaBridge.cpp
-        src/main/cpp/rtmp/BlockedQueue.h
-        src/main/cpp/rtmp/BlockedQueue.cpp
-        src/main/cpp/rtmp/RobinPusher.h
-        src/main/cpp/rtmp/RobinPusher.cpp
         )
 
 add_library(avcodec-57 SHARED IMPORTED)
@@ -118,3 +128,9 @@ target_link_libraries( # Specifies the target library.
         # Links the target library to the log library
         # included in the NDK.
         log)
+
+target_link_libraries(
+        RobinPusher
+
+        log
+)
