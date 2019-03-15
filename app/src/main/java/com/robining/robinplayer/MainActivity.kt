@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.View
 import com.robining.robinplayer.base.BaseActivity
 import com.robining.robinplayer.base.IPermissionRequestCallback
+import com.robining.robinplayer.camera.Camera2Activity
 import com.robining.robinplayer.camera.CameraActivity
 import com.robining.robinplayer.opengl.EglActivity
 import com.robining.robinplayer.player.PlayerActivity
@@ -31,7 +32,7 @@ class MainActivity : BaseActivity() {
     fun gotoCamera(view: View){
         requestPermission(object :IPermissionRequestCallback{
             override fun onAllPermissionGranted() {
-                startActivity(CameraActivity::class.java)
+                startActivity(Camera2Activity::class.java)
             }
         },Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }

@@ -30,6 +30,17 @@ Java_com_robining_robinplayer_pusher_RobinPusher_nativePushAudio(
 
 extern "C" JNIEXPORT void
 JNICALL
+Java_com_robining_robinplayer_pusher_RobinPusher_nativePushVideo(
+        JNIEnv *env,
+        jobject jobj,
+        jbyteArray data,
+        jint length,
+        jboolean isKeyFrame) {
+    pusher->pushVideo(reinterpret_cast<char *>(data), length, isKeyFrame);
+}
+
+extern "C" JNIEXPORT void
+JNICALL
 Java_com_robining_robinplayer_pusher_RobinPusher_nativePushSpsAndPps(
         JNIEnv *env,
         jobject jobj,

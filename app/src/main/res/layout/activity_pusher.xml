@@ -6,14 +6,21 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     tools:context=".pusher.PusherActivity">
+
     <android.support.v7.widget.AppCompatButton
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:onClick="startRecord"
-        android:text="开始录制"/>
+        android:text="开始录制" />
+
     <android.support.v7.widget.AppCompatButton
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:onClick="stopRecord"
-        android:text="停止录制"/>
+        android:text="停止录制" />
+
+    <com.robining.robinplayer.camera1.RGLSurfaceView
+        android:id="@+id/glSurfaceView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 </LinearLayout>

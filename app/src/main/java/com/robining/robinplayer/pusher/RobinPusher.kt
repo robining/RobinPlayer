@@ -13,8 +13,8 @@ class RobinPusher : IPusher {
         nativePushAudio(data, data.size)
     }
 
-    override fun pushVideo(data: ByteArray) {
-
+    override fun pushVideo(data: ByteArray, isKeyFrame: Boolean) {
+        nativePushVideo(data, data.size, isKeyFrame)
     }
 
 
@@ -26,6 +26,8 @@ class RobinPusher : IPusher {
     private external fun nativeConnectPusher(url: String)
 
     private external fun nativePushAudio(bytes: ByteArray, length: Int)
+
+    private external fun nativePushVideo(bytes: ByteArray, length: Int, isKeyFrame: Boolean)
 
     private external fun nativePushSpsAndPps(sps: ByteArray, spsLength: Int, pps: ByteArray, ppsLength: Int)
 }

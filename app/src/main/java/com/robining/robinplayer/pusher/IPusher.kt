@@ -5,7 +5,7 @@ interface IPusher {
 
     fun pushAudio(data: ByteArray)
 
-    fun pushVideo(data: ByteArray)
+    fun pushVideo(data: ByteArray,isKeyFrame:Boolean)
 
     fun pushSpsAndPps(sps: ByteArray, pps: ByteArray)
 }

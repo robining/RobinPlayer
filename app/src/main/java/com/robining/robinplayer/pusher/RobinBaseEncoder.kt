@@ -23,7 +23,7 @@ abstract class RobinBaseEncoder {
     }
 
     fun pushData(data: ByteArray, length: Int) {
-        if(!mediaFormat!!.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)){
+        if (!mediaFormat!!.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) {
             throw IllegalStateException("please set KEY_MAX_INPUT_SIZE for mediaFormat")
         }
         val maxInputSize = mediaFormat!!.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)
@@ -57,7 +57,7 @@ abstract class RobinBaseEncoder {
 
     open fun onLoopStart() {}
     open fun onLoopStop() {}
-    abstract fun onEncodedData(data: ByteArray)
+    abstract fun onEncodedData(bufferInfo: MediaCodec.BufferInfo, data: ByteArray)
     abstract fun onOutputFormatChanged(outputBufferIndex: Int)
 
     class EncodeThread(private val encoderRef: WeakReference<RobinBaseEncoder>) : LoopThread() {
@@ -74,7 +74,7 @@ abstract class RobinBaseEncoder {
 
                 val data = ByteArray(outBuffer.remaining())
                 outBuffer.get(data, 0, data.size)
-                encoder.onEncodedData(data)
+                encoder.onEncodedData(mediaBufferInfo, data)
 
                 outBuffer.position(mediaBufferInfo.offset)
                 encoder.mediaEncoder!!.releaseOutputBuffer(index, false)

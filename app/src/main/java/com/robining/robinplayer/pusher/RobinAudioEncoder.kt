@@ -1,9 +1,10 @@
 package com.robining.robinplayer.pusher
 
+import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
 
-class RobinAudioEncoder(mime: String, sampleRate: Int, channelCount: Int, bitPerSample: Int) : RobinBaseEncoder() {
+class RobinAudioEncoder(mime: String, sampleRate: Int, channelCount: Int, bitPerSample: Int) : RobinBaseMediaEncoder() {
     private val mediaFormat: MediaFormat = MediaFormat.createAudioFormat(mime, sampleRate, channelCount)
     var encodeListener: EncodeListener? = null
 
@@ -31,11 +32,10 @@ class RobinAudioEncoder(mime: String, sampleRate: Int, channelCount: Int, bitPer
             ppsb.get(pps, 0, pps.size)
         }
 
-
         encodeListener?.onFoundSpsAndPps(sps, pps)
     }
 
-    override fun onEncodedData(data: ByteArray) {
+    override fun onEncodedData(bufferInfo: MediaCodec.BufferInfo, data: ByteArray) {
         encodeListener?.onEncodedData(data)
     }
 
