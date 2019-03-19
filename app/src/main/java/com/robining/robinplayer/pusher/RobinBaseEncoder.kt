@@ -26,6 +26,10 @@ abstract class RobinBaseEncoder {
         if (!mediaFormat!!.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) {
             throw IllegalStateException("please set KEY_MAX_INPUT_SIZE for mediaFormat")
         }
+        if(encodeThread == null || !encodeThread!!.isRunning){
+            //还没有开始
+            return
+        }
         val maxInputSize = mediaFormat!!.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)
 
         var offset = 0

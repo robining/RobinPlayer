@@ -57,7 +57,6 @@ void RobinPusher::startSendLoop() {
     while (isRunning) {
         RTMPPacket *packet = packetQueue.pop();
         RTMP_SendPacket(rtmp, packet, 1);
-        LOGI(">>>send a packet,%d", packet->m_nTimeStamp);
         RTMPPacket_Free(packet);
     }
 }
@@ -80,6 +79,7 @@ void RobinPusher::pushAudio(char *data, int length) {
     packet->m_headerType = RTMP_PACKET_SIZE_LARGE;
     packet->m_nInfoField2 = rtmp->m_stream_id;
     packetQueue.push(packet);
+    LOGI(">>>enqueue a audio packet");
 }
 
 void RobinPusher::pushSpsAndPps(char *sps, int spsLength, char *pps, int ppsLength) {
@@ -126,6 +126,8 @@ void RobinPusher::pushSpsAndPps(char *sps, int spsLength, char *pps, int ppsLeng
     packet->m_nInfoField2 = rtmp->m_stream_id;
 
     packetQueue.push(packet);
+
+    LOGI(">>>enqueue a sps and pps packet");
 }
 
 void RobinPusher::pushVideo(char *data, int data_len, bool keyframe) {
@@ -163,4 +165,5 @@ void RobinPusher::pushVideo(char *data, int data_len, bool keyframe) {
     packet->m_nInfoField2 = rtmp->m_stream_id;
 
     packetQueue.push(packet);
+    LOGI(">>>enqueue a video packet,is keyframe:%d",keyframe);
 }

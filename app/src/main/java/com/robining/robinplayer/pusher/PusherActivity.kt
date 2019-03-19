@@ -87,11 +87,11 @@ class PusherActivity : AppCompatActivity() {
         rtmpPusher?.connect("rtmp://132.232.32.188:1936/live/room")
 //        audioEncoder?.start()
         videoEncoder?.start()
-        audioRecorder?.start()
+//        audioRecorder?.start()
     }
 
     fun stopRecord(view: View) {
-        audioRecorder?.stop()
+//        audioRecorder?.stop()
 //        audioEncoder?.stop()
         videoEncoder?.stop()
         fileOutputStream?.close()

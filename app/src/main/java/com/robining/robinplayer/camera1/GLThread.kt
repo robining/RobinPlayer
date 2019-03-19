@@ -43,9 +43,7 @@ class GLThread(
             if (renderMode == RenderMode.RENDERMODE_WHEN_DIRTY) {
                 try {
                     synchronized(lock) {
-                        println(">>>start wait lock notify")
                         lock.wait()
-                        println(">>>lock notify")
                     }
                 } catch (ex: InterruptedException) {
                 }
@@ -79,7 +77,6 @@ class GLThread(
 
     fun requestRender() {
         synchronized(lock) {
-            println(">>>notify all lock")
             lock.notifyAll()
         }
     }

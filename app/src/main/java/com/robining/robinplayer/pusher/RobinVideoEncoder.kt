@@ -6,7 +6,7 @@ import android.media.MediaCodecInfo
 import android.view.Surface
 
 
-class RobinVideoEncoder(mimeType: String, width: Int, height: Int) : RobinBaseMediaEncoder() {
+class RobinVideoEncoder(mimeType: String, width: Int, height: Int) : RobinBaseEncoder() {
     var surface: Surface
     var encodeListener: EncodeListener? = null
     private var sps = ByteArray(0)

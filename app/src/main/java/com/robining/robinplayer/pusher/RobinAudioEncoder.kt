@@ -4,7 +4,7 @@ import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
 
-class RobinAudioEncoder(mime: String, sampleRate: Int, channelCount: Int, bitPerSample: Int) : RobinBaseMediaEncoder() {
+class RobinAudioEncoder(mime: String, sampleRate: Int, channelCount: Int, bitPerSample: Int) : RobinBaseEncoder() {
     private val mediaFormat: MediaFormat = MediaFormat.createAudioFormat(mime, sampleRate, channelCount)
     var encodeListener: EncodeListener? = null
 
