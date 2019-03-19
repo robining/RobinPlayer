@@ -42,6 +42,6 @@ class MainActivity : BaseActivity() {
             override fun onAllPermissionGranted() {
                 startActivity(PusherActivity::class.java)
             }
-        },Manifest.permission.RECORD_AUDIO,Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        },Manifest.permission.RECORD_AUDIO,Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }
 }

@@ -42,6 +42,10 @@ class RobinVideoEncoder(mimeType: String, width: Int, height: Int) : RobinBaseEn
 
         this.sps = sps
         this.pps = pps
+
+        val width = (H264SPSPaser.ue(sps, 34) + 1) * 16
+        val height = (H264SPSPaser.ue(sps, -1) + 1) * 16
+        println(">>>with:$width  height:$height")
     }
 
     override fun onEncodedData(bufferInfo: MediaCodec.BufferInfo, data: ByteArray) {

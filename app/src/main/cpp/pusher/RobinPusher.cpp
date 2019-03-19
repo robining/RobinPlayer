@@ -117,7 +117,7 @@ void RobinPusher::pushSpsAndPps(char *sps, int spsLength, char *pps, int ppsLeng
     body[i++] = ppsLength & 0xff;
     memcpy(&body[i], pps, ppsLength);
 
-    packet->m_packetType = RTMP_PACKET_TYPE_AUDIO;
+    packet->m_packetType = RTMP_PACKET_TYPE_VIDEO;
     packet->m_nBodySize = bodysize;
     packet->m_nTimeStamp = 0;
     packet->m_hasAbsTimestamp = 0;
