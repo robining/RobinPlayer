@@ -45,7 +45,7 @@ class PusherActivity : AppCompatActivity() {
         audioEncoder!!.encodeListener = object : RobinAudioEncoder.EncodeListener {
             override fun onFoundSpsAndPps(sps: ByteArray, pps: ByteArray) {
 //                println(">>>found sps:${sps.size}  pps:${pps.size}")
-                rtmpPusher?.pushSpsAndPps(sps,pps)
+//                rtmpPusher?.pushSpsAndPps(sps,pps)
             }
 
             override fun onEncodedData(data: ByteArray) {
@@ -84,7 +84,7 @@ class PusherActivity : AppCompatActivity() {
 
     fun startRecord(view: View) {
         fileOutputStream = FileOutputStream(file)
-        rtmpPusher?.connect("rtmp://192.168.0.106:1935/live/room")
+        rtmpPusher?.connect("rtmp://192.168.18.96:1935/live/room")
         audioEncoder?.start()
         videoEncoder?.start()
         audioRecorder?.start()
